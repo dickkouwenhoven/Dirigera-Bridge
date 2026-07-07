@@ -1,0 +1,46 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# requirements.txt — Dirigera MQTT Bridge
+#
+# All versions are pinned to their minor version (major.minor) with a
+# >= lower bound and a < upper bound to:
+#   - Ensure reproducible builds across environments
+#   - Allow patch-level security updates automatically
+#   - Prevent breaking changes from major/minor upgrades
+#
+# Platform: Raspberry Pi 5 (linux/arm64, Python 3.12)
+# ─────────────────────────────────────────────────────────────────────────────
+
+# ── Home Assistant MQTT SDK ──────────────────────────────────────────────────
+
+# HASDK - entity lifecycle, MQTT discovery, AsyncEntityManager
+# Now available on PyPI: https://pypi.org/project/ha-mqtt-sdk/
+ha_mqtt_sdk>=0.7.0,<2.0
+
+# ── Core async runtime ───────────────────────────────────────────────────────
+
+# WebSocket client for Dirigera hub real-time event stream
+# Used by: app/dirigera/websocket_client.py
+websockets>=16.0,<17.0
+
+# Async HTTP client for Dirigera REST API commands
+# Used by: app/dirigera/rest_client.py
+aiohttp>=3.9,<4.0
+
+# Async MQTT client (used by HASDK internally)
+# Listed here to pin the version used by the HASDK transport layer
+aiomqtt>=2.0,<3.0
+
+# ── Data validation ───────────────────────────────────────────────────────────
+
+# Data validation and parsing for Dirigera device/event payloads
+# Used by: app/dirigera/models.py
+pydantic>=2.0,<3.0
+
+# ── Configuration ─────────────────────────────────────────────────────────────
+
+# Loads .env file into os.environ at startup
+# Used by: app/config.py
+python-dotenv>=1.0,<2.0
+
+# Pytest
+pytest>=8.0,<10.0
