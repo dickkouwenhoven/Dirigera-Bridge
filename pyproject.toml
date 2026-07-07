@@ -1,0 +1,118 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dirigera_bridge"
+version = "0.1.0"
+description = "A python service that bridges an IKEA Dirigera hub to Home Assistant via MQTT."
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+
+authors = [
+	{ name = "Dick Kouwenhoven", email = "dick.kouwenhoven@planet.nl" }
+]
+
+keywords = [
+	"homeassistant",
+	"mqtt",
+	"iot",
+	"automation",
+	"python",
+	"smarthome",
+]
+
+classifiers = [
+	"Development Status :: 1 - Beta",
+	"License :: OSI Approved :: MIT License",
+	"Intended Audience :: Developers",
+	"Topic :: Home Automation",
+	"Programming Language :: Python :: 3.12",
+	"Programming Language :: Python :: 3.13",
+	"Programming Language :: Python :: 3.14",
+]
+
+dependencies = [
+	"paho-mqtt>=2.1.0",
+	"aiomqtt>=2.5.1",	
+]
+
+[project.optional-dependencies]
+dev = [
+	"pytest>=9.0.0",
+	"pytest-cov>=7.0.0",
+	"pytest-asyncio>=1.0.0",
+	"ruff>=0.15.0",
+	"mypy>=2.0.0",
+	"pre-commit>=4.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/dickkouwenhoven/Dirigera-Bridge"
+Repository = "https://github.com/dickkouwenhoven/Dirigera-Bridge"
+Issues = "https://github.com/dickkouwenhoven/Dirigera-Bridge/issues"
+Changelog = "https://github.com/dickkouwenhoven/Dirigera-Bridge/releases"
+
+# -------------------------
+# Packaging config
+# -------------------------
+
+[tool.setuptools.package-data]
+ha_mqtt_sdk = ["py.typed"]
+
+[tool.setuptools.packages.find]
+where = ["app"]
+
+[tool.setuptools]
+package-dir = {"" = "app"}
+
+# -------------------------
+# Optional dev tools
+# -------------------------
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+# -------------------------
+# Ruff Settings
+#
+# E = pycodestyle
+# F = pyflakes
+# I = imports
+# B = bugbear
+# UP = pyupgrade
+# SIM = simplifications
+# -------------------------
+[tool.ruff.lint]
+select = [
+	"E",
+	"F",
+	"I",
+	"UP",
+	"B",
+	"SIM",
+]
+
+ignore = []
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+
+[tool.coverage.run]
+source = ["dirigera_brdige"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+
+[tool.mypy]
+python_version = "3.13"
+warn_unused_ignores = true
+mypy_path = "app"
+no_implicit_optional = true
+check_untyped_defs = true
+strict = true
