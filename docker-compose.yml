@@ -1,0 +1,150 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# docker-compose.yml — Dirigera MQTT Bridge
+#
+# Assumptions:
+#   - The iot_network Docker bridge network already exists and is shared
+#     with the mosquitto and homeassistant containers.
+#   - The HASDK source lives at the path defined by SDK_SRC_PATH (see
+#     the .env file or the default below). It is copied into the build
+#     context as sdk_src/ during the build stage.
+#   - The .env file lives in the same directory as this file.
+#
+# Create the shared network (once, if not already created):
+#   docker network create iot_network
+#
+# Build and start:
+#   docker compose up -d --build
+#
+# View logs:
+#   docker compose logs -f dirigera-bridge
+#
+# Stop:
+#   docker compose down
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+
+  dirigera-bridge:
+
+    # ── Build ─────────────────────────────────────────────────────────────
+    build:
+      context: .
+      dockerfile: Dockerfile
+      # Pass the SDK source into the build context by sym linking or
+      # copying it to sdk_src/ before building, or override SDK_SRC_PATH
+      # in .env to point to the correct location on the host.
+      # The Dockerfile expects sdk_src/ to be present at build context root.
+
+    # ── Image ─────────────────────────────────────────────────────────────
+    image: dirigera-mqtt-bridge:latest
+
+    # ── Container identity ────────────────────────────────────────────────
+    container_name: dirigera-bridge
+
+    # ── Restart policy ────────────────────────────────────────────────────
+    # always: restart on failure, on Docker daemon restart, and on reboot.
+    # This ensures the bridge comes back up automatically after a Pi reboot
+    # or a temporary hub/broker outage.
+    restart: always
+
+    # ── Environment ───────────────────────────────────────────────────────
+    # All secrets and configuration come from the .env file.
+    # The .env file is never copied into the image — it is mounted at
+    # runtime only. Docker Compose reads it from the project directory.
+    env_file:
+      - .env
+
+    # ── Logging ───────────────────────────────────────────────────────────
+    # json-file driver with rotation keeps logs manageable on the Pi's
+    # SD card / SSD. 10 MB per file, max 5 files = 50 MB total.
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+    # ── Network ───────────────────────────────────────────────────────────
+    # Connects to the shared iot_network so the bridge can reach:
+    #   mosquitto     — by container name (MQTT_HOST=mqtt in .env)
+    #   homeassistant — by container name (not directly used by bridge)
+    # No ports are exposed externally — this is a pure internal bridge.
+    networks:
+      - iot_network
+
+    # ── Dependencies ──────────────────────────────────────────────────────
+    # Ensures mosquitto is running before the bridge starts.
+    # Note: depends_on only waits for the container to START, not for
+    # the broker to be READY. The bridge's retry logic handles the case
+    # where the broker takes a moment to become available.
+
+    depends_on:
+      - mosquitto
+
+    # ── Health check ──────────────────────────────────────────────────────
+    # Mirrors the "HEALTHCHECK" in the Dockerfile. Docker Compose uses this
+    # to determine when the container is healthy for depends_on conditions.
+    healthcheck:
+      test: ["CMD", "python", "-c", "import app.config; print('ok')"]
+      interval: 30s
+      timeout: 10s
+      start_period: 15s
+      retries: 3
+
+    # ── Resource limits (Raspberry Pi 5 tuning) ───────────────────────────
+    # The bridge is lightweight — 256 MB RAM is generous.
+    # CPU limit of 0.5 leaves plenty for the OS and other containers.
+    # Remove or adjust if running on a more constrained or more powerful host.
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
+        reservations:
+          memory: 64M
+          cpus: "0.1"
+
+
+  # ── Mosquitto MQTT broker ─────────────────────────────────────────────────
+  # Defined here so depends_on works correctly. The actual mosquitto
+  # container is assumed to be managed by a separate compose file or
+  # already running. If mosquitto is external, remove this section and
+  # remove it from depends_on above.
+
+  mosquitto:
+    image: eclipse-mosquitto:latest
+    container_name: mosquitto
+    restart: always
+    networks:
+      - iot_network
+    volumes:
+      - mosquitto_data:/mosquitto/data
+      - mosquitto_log:/mosquitto/log
+      # Mount your mosquitto.conf from the host:
+      - ./mosquitto/config/mosquitto.conf:/mosquitto/config/mosquitto.conf
+    ports:
+      # Expose MQTT port to the host so other containers on the Pi
+      # can reach the broker even outside the iot_network if needed.
+      - "1883:1883"
+    logging:
+    driver: json-file
+    options:
+      max-size: "5m"
+      max-file: "3"
+
+
+# ── Networks ──────────────────────────────────────────────────────────────────
+networks:
+  iot_network:
+    # Use 'external: true' if the network was created outside of this
+    # compose file (e.g. by the homeassistant compose stack).
+    # Use 'external: false' (or omit) if this file owns the network.
+    external: true
+    name: iot_network
+
+
+# ── Volumes ───────────────────────────────────────────────────────────────────
+volumes:
+  mosquitto_data:
+    driver: local
+  mosquitto_log:
+    driver: local
