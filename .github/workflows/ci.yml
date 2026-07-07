@@ -1,0 +1,65 @@
+# .github/workflows/ci.yml
+#
+# Full CI pipeline: runs tests across all supported Python versions.
+# Runs on every push and pull request.
+
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.12", "3.13", "3.14"]
+
+    services:
+      mqtt:
+        image: eclipse-mosquitto:2.0
+        ports:
+          - 1883:1883
+        options: >-
+          --health-cmd "nc -z localhost 1883 || exit 1"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+          --health-start-period 5s
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Run tests
+        run: |
+          pytest \
+            --cov=ha_mqtt_sdk \
+            --cov-report=term-missing \
+            --cov-report=xml \
+            --cov-fail-under=100 \
+            -v
+
+      - name: Upload coverage report
+        if: matrix.python-version == '3.14'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage.xml
