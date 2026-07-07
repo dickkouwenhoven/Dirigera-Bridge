@@ -1,0 +1,32 @@
+# mosquitto.conf.example
+#
+# Copy to mosquitto.conf and fill in your values.
+# Never commit mosquitto.conf with real credentials to version control.
+#
+# Setup:
+#   cp mosquitto/mosquitto.conf.example mosquitto/mosquitto.conf
+#   mosquitto_passwd -c /mosquitto/config/passwd <your-username>
+#   # Add your certificates to /mosquitto/certs/
+
+listener 8883
+allow_anonymous false
+
+cafile   /mosquitto/certs/ca.crt
+certfile /mosquitto/certs/server.crt
+keyfile  /mosquitto/certs/server.key
+
+tls_version tlsv1.3
+require_certificate true
+
+password_file /mosquitto/config/passwd
+acl_file /mosquitto/config/acl
+
+persistence true
+persistence_location /mosquitto/data/
+
+log_dest stdout
+log_dest file /mosquitto/log/mosquitto.log
+log_type error
+log_type warning
+log_type notice
+log_type information
