@@ -659,7 +659,7 @@ class Orchestrator:
                 )
                 self._metrics.increment(MetricName.ERROR_REST)
 
-        return _handle_command  # type: ignore[return-value]
+        return _handle_command
 
     # ── Helpers ───────────────────────────────────────────────────────────
 
