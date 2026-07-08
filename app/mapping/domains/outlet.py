@@ -87,7 +87,7 @@ _ATTR_TOTAL_ENERGY_CONSUMED = "totalEnergyConsumed"
 
 
 def map_outlet(
-    context: DeviceContext,  # type: ignore[name-defined]
+    context: DeviceContext,
     device_info: DeviceInfo,
 ) -> List[Entity]:
     """
