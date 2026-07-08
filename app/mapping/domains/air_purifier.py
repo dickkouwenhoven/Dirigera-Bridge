@@ -86,7 +86,7 @@ _FAN_PRESET_MODES = ["auto"]
 
 
 def map_air_purifier(
-    context: DeviceContext,  # type: ignore[name-defined]
+    context: DeviceContext,
     device_info: DeviceInfo,
 ) -> List[Entity]:
     """
