@@ -88,7 +88,7 @@ logger = logging.getLogger(__name__)
 # Import is deferred to avoid a circular import: DeviceContext is
 # defined in device_registry.py which imports from this package.
 # The type alias is only used for documentation and IDE support.
-DomainMapper = Callable[[DeviceContext, DeviceInfo], List[Entity]]  # type: ignore[name-defined]
+DomainMapper = Callable[[DeviceContext, DeviceInfo], List[Entity]]
 
 
 # ── Shared helpers ────────────────────────────────────────────────────────────
