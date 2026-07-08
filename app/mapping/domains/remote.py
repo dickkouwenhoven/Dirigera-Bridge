@@ -105,7 +105,7 @@ _REMOTE_EVENT_TYPES = [
 
 
 def map_light_controller(
-    context: DeviceContext,  # type: ignore[name-defined]
+    context: DeviceContext,
     device_info: DeviceInfo,
 ) -> List[Entity]:
     """
