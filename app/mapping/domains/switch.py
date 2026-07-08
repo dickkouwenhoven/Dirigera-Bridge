@@ -75,7 +75,7 @@ logger = logging.getLogger(__name__)
 
 
 def map_switch(
-    context: DeviceContext,  # type: ignore[name-defined]
+    context: DeviceContext,
     device_info: DeviceInfo,
 ) -> List[Entity]:
     """
