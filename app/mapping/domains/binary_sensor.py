@@ -84,7 +84,7 @@ _ATTR_BATTERY_PERCENTAGE = "batteryPercentage"
 
 
 def map_motion_sensor(
-    context: DeviceContext,  # type: ignore[name-defined]
+    context: DeviceContext,
     device_info: DeviceInfo,
 ) -> List[Entity]:
     """
@@ -148,7 +148,7 @@ def map_motion_sensor(
 
 
 def map_water_sensor(
-    context: "DeviceContext",  # type: ignore[name-defined]
+    context: "DeviceContext",
     device_info: DeviceInfo,
 ) -> List[Entity]:
     """
