@@ -62,7 +62,7 @@ __all__ = [
 logger = logging.getLogger(__name__)
 
 # Internal type alias: maps attribute_name -> value
-_DeviceState = Dict[str, Any]
+_DeviceState = Dict[str, object]
 
 # Internal type alias: maps logical_id -> _DeviceState
 _CacheStore = Dict[str, _DeviceState]
@@ -254,7 +254,7 @@ class StateCache:
         self,
         logical_id: str,
         attribute: str,
-        value: Any,
+        value: object,
     ) -> bool:
         """
         Return True if value differs from what is currently cached,
