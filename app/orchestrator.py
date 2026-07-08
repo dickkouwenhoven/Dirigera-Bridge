@@ -33,7 +33,12 @@ What it does:
         DEVICE_REMOVED      → unregister from caches, mark offline
         DEVICE_REACHABLE    → mark device entities online
         DEVICE_UNREACHABLE  → mark device entities offline
-        DIRIGERA_CONNECTED  → re-discover devices, transition RUNNING
+        DIRIGERA_CONNECTED  → only acted on when recovering from
+                              RECONNECTING (re-discover devices,
+                              transition RUNNING); a no-op during the
+                              initial connection at startup, since
+                              _startup() already owns that path —
+                              see _on_dirigera_connected()
         DIRIGERA_DISCONNECTED → mark all offline, transition RECONNECTING
 
     Shutdown sequence:
@@ -234,10 +239,22 @@ class Orchestrator:
         await self._discover_and_register_devices()
 
         # ── Step 10: STARTING → RUNNING ───────────────────────────────────
-        await self._lifecycle.transition(
-            LifecycleState.RUNNING,
-            reason="startup complete",
-        )
+        if self._lifecycle.can_transition(LifecycleState.RUNNING):
+            await self._lifecycle.transition(
+                LifecycleState.RUNNING,
+                reason="startup complete",
+            )
+        else:
+            # Defensive only — should not happen now that
+            # _on_dirigera_connected() no longer reacts to the initial
+            # connection during startup. Logged rather than raised so
+            # a future regression degrades to a warning instead of a
+            # full crash-loop.
+            logger.warning(
+                "Orchestrator: expected to transition to RUNNING at end "
+                "of startup, but current state is '%s' — skipping",
+                self._lifecycle.current_state.value,
+            )
 
         # ── Step 11: start metrics loop ───────────────────────────────────
         self._metrics_task = asyncio.create_task(
@@ -518,13 +535,35 @@ class Orchestrator:
 
     async def _on_dirigera_connected(self, _event: DirigeraEvent) -> None:
         """
-        Handle DIRIGERA_CONNECTED — WebSocket reconnected after a drop.
+        Handle DIRIGERA_CONNECTED.
 
-        Re-discovers all devices to pick up any changes that occurred
-        while disconnected, then transitions back to RUNNING.
+        This event fires in two genuinely different situations that
+        the websocket client itself cannot distinguish (it has no
+        lifecycle visibility, by design — see module docstring):
+            1. The very first connection during normal startup.
+               _startup() already owns discovery/registration and the
+               STARTING -> RUNNING transition for this case, via its
+               own sequential flow.
+            2. The connection being restored after a real outage
+               (lifecycle was RECONNECTING). This is the only case
+               that needs action here.
+
+        Reacting to case 1 as well used to race _startup()'s own
+        sequential registration pass — both would fetch and register
+        the same devices concurrently, causing "already registered"
+        errors, and _startup()'s own final STARTING -> RUNNING
+        transition would then fail since the event handler had
+        already (incorrectly) made that transition first.
         """
 
-        logger.info("Orchestrator: Dirigera WebSocket reconnected")
+        if self._lifecycle.current_state != LifecycleState.RECONNECTING:
+            logger.debug(
+                "Orchestrator: Dirigera WebSocket connected during startup "
+                "— no action needed here, _startup() owns this path"
+            )
+            return
+
+        logger.info("Orchestrator: Dirigera WebSocket reconnected after outage")
 
         if self._lifecycle.can_transition(LifecycleState.RUNNING):
             await self._lifecycle.transition(
