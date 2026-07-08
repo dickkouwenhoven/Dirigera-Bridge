@@ -154,7 +154,7 @@ class Orchestrator:
         self._entities: Dict[str, Entity] = {}
 
         # Background task handle
-        self._metrics_task: Optional[asyncio.Task] = None
+        self._metrics_task: asyncio.Task[None] | None = None
 
         logger.debug("Orchestrator initialised")
 
