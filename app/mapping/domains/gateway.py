@@ -89,7 +89,7 @@ _ATTR_IS_ON = "isOn"
 
 
 def map_gateway(
-    context: DeviceContext,  # type: ignore[name-defined]
+    context: DeviceContext,
     device_info: DeviceInfo,
 ) -> List[Entity]:
     """
