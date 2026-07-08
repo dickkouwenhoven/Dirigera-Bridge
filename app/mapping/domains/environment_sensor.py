@@ -88,7 +88,7 @@ _ATTR_VOC_INDEX = "vocIndex"
 
 
 def map_environment_sensor(
-    context: DeviceContext,  # type: ignore[name-defined]
+    context: DeviceContext,
     device_info: DeviceInfo,
 ) -> List[Entity]:
     """
