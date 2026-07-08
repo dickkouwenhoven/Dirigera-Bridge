@@ -121,6 +121,40 @@ class TestOrchestratorStartup:
         assert lifecycle.current_state == LifecycleState.RUNNING
 
     @pytest.mark.integration
+    async def test_startup_survives_fast_websocket_connect_race(
+        self, orchestrator, lifecycle, event_bus, mock_ws_client, mock_rest_client
+    ):
+        """
+        Regression test for the real-world startup crash-loop: if the
+        WebSocket connects fast enough that DIRIGERA_CONNECTED fires
+        concurrently with _startup()'s own device-discovery pass (as
+        happens for real on a local network), _startup() must still
+        complete successfully — no duplicate registration pass, no
+        crash on an invalid RUNNING -> RUNNING transition.
+        """
+
+        async def _fast_connect():
+            # Simulate the real websocket client: connect() returns
+            # almost immediately, then a background task fires
+            # DIRIGERA_CONNECTED shortly after — often before
+            # _startup()'s own device-discovery pass has finished.
+            event = DirigeraEvent(event_type=EventType.DIRIGERA_CONNECTED, logical_id="")
+            asyncio.get_event_loop().call_soon(
+                lambda: asyncio.ensure_future(event_bus.publish(event))
+            )
+
+        mock_ws_client.connect.side_effect = _fast_connect
+
+        await orchestrator._startup()  # must not raise
+        await asyncio.sleep(0.05)
+
+        assert lifecycle.current_state == LifecycleState.RUNNING
+        # get_devices should only have been called once — by _startup()
+        # itself. The premature DIRIGERA_CONNECTED must not have
+        # triggered a second, racing discovery pass.
+        assert mock_rest_client.get_devices.await_count == 1
+
+    @pytest.mark.integration
     async def test_startup_connects_ha_client(self, orchestrator, mock_ha_client):
         """Startup calls ha_client.connect()."""
         await orchestrator._startup()
@@ -327,10 +361,18 @@ class TestOrchestratorConnectionEvents:
         assert lifecycle.current_state == LifecycleState.RECONNECTING
 
     @pytest.mark.integration
-    async def test_dirigera_connected_triggers_rediscovery(
-        self, orchestrator, event_bus, mock_rest_client
+    async def test_dirigera_connected_triggers_rediscovery_after_outage(
+        self, orchestrator, event_bus, lifecycle, mock_rest_client
     ):
-        """DIRIGERA_CONNECTED triggers re-discovery (get_devices called again)."""
+        """
+        DIRIGERA_CONNECTED triggers re-discovery when recovering from a
+        real outage (lifecycle was RECONNECTING).
+        """
+        # Simulate a real prior disconnect
+        await lifecycle.transition(
+            LifecycleState.RECONNECTING, reason="test: simulate disconnect"
+        )
+
         initial_call_count = mock_rest_client.get_devices.await_count
 
         event = DirigeraEvent(
@@ -341,6 +383,32 @@ class TestOrchestratorConnectionEvents:
         await asyncio.sleep(0.05)
 
         assert mock_rest_client.get_devices.await_count > initial_call_count
+        assert lifecycle.current_state == LifecycleState.RUNNING
+
+    @pytest.mark.integration
+    async def test_dirigera_connected_is_noop_when_not_reconnecting(
+        self, orchestrator, event_bus, lifecycle, mock_rest_client
+    ):
+        """
+        Regression test: DIRIGERA_CONNECTED must NOT trigger re-discovery
+        when the lifecycle is already RUNNING (e.g. the initial
+        connection during startup) — _startup() already owns that path
+        via its own sequential flow. Reacting here too previously raced
+        _startup()'s own registration pass and crashed the service with
+        an invalid RUNNING -> RUNNING transition.
+        """
+        assert lifecycle.current_state == LifecycleState.RUNNING
+        initial_call_count = mock_rest_client.get_devices.await_count
+
+        event = DirigeraEvent(
+            event_type=EventType.DIRIGERA_CONNECTED,
+            logical_id="",
+        )
+        await event_bus.publish(event)
+        await asyncio.sleep(0.05)
+
+        assert mock_rest_client.get_devices.await_count == initial_call_count
+        assert lifecycle.current_state == LifecycleState.RUNNING
 
 
 # ── DEVICE_REMOVED ────────────────────────────────────────────────────────────
