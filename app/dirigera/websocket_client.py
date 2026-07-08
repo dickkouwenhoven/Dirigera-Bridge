@@ -168,8 +168,8 @@ class DirigeraWebSocketClient:
         self._stop_event: asyncio.Event = asyncio.Event()
 
         # Background tasks
-        self._listen_task: Optional[asyncio.Task] = None
-        self._ping_task: Optional[asyncio.Task] = None
+        self._listen_task: asyncio.Task[None] | None = None
+        self._ping_task: asyncio.Task[None] | None = None
 
         self._ws_url = f"wss://{settings.dirigera_ip}:{_WS_PORT}{_WS_PATH}"
 
