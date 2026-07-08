@@ -95,7 +95,7 @@ _BUTTON_EVENT_TYPES = [
 
 
 def map_button(
-    context: DeviceContext,  # type: ignore[name-defined]
+    context: DeviceContext,
     device_info: DeviceInfo,
 ) -> List[Entity]:
     """
