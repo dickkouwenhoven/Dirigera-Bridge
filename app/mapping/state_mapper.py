@@ -132,6 +132,7 @@ class StateMapper:
         device_type: str,
         attribute: str,
         value: Any,
+        device_atrributes: Optional[Dict[str, Any]] = None,
     ) -> Optional[StatePayload]:
         """
         Translate a Dirigera attribute change to an HA state payload.
@@ -168,7 +169,9 @@ class StateMapper:
         # ── Route by device type ──────────────────────────────────────────
         try:
             if device_type == "light":
-                return self._map_light_state(logical_id, attribute, value)
+                return self._map_light_state(
+                    logical_id, attribute, device_attributevalues or {}
+                )
 
             if device_type == "outlet":
                 return self._map_outlet_state(logical_id, attribute, value)
@@ -231,58 +234,127 @@ class StateMapper:
     def _map_light_state(
         logical_id: str,
         attribute: str,
-        value: Any,
+        device_attributes: Dict[str, Any],
     ) -> Optional[StatePayload]:
         """
-        Translate light attribute changes to HA MQTT payloads.
+        Translate a light attribute change into HA's merged JSON
+        light state payload.
 
-        Handled attributes:
-            isOn          → 'ON' / 'OFF'    on the primary entity
-            lightLevel    → str(value)      brightness (1-100)
-            colorTemperature → str(value)   in Kelvin (HA converts to mireds)
-            colorHue      → JSON payload    color (combined with saturation)
-            colorSaturation → JSON payload  color
-            colorMode     → ignored         (HA derives from what's published)
+        Every light now uses HA's MQTT light JSON schema (see
+        light.py's "MQTT light schema" note), which means the ENTIRE
+        current light state must be published as one JSON object to
+        the single state_topic on every change — HA treats each
+        JSON-schema state message as a full snapshot, not an
+        incremental patch. Publishing only the single changed
+        attribute (e.g. just {"brightness": 128}) would omit "state"
+        entirely and could make HA lose track of previously-known
+        fields. This replaced an earlier version that published each
+        attribute as its own separate payload (plain ON/OFF for isOn,
+        a bare number for lightLevel, partial JSON for colorHue/
+        colorSaturation) — a real bug found against a live HA
+        instance, where the icon never tracked the real device state
+        because none of those payloads matched what HA's JSON schema
+        actually expects to receive.
+
+        device_attributes is the FULL current known attribute dict
+        for this device — map_state()'s caller (orchestrator.py)
+        supplies self._state_cache.get_device_state(logical_id),
+        which already includes the just-changed attribute (the cache
+        is updated before map_state() is called) plus every other
+        attribute seen for this device so far. This keeps map_state()
+        a pure function: given all currently-known facts about the
+        device, it deterministically builds the complete snapshot —
+        no hidden state inside state_mapper.py itself.
+
+        Handled attributes (each just triggers a full-snapshot
+        rebuild from device_attributes, not a per-attribute payload):
+            isOn             → JSON "state": 'ON' / 'OFF'
+            lightLevel       → JSON "brightness": int (1-100)
+            colorTemperature → JSON "color_temp": int mireds
+                               (Kelvin → mireds, matching the
+                               min_mireds/max_mireds light.py already
+                               declares in discovery)
+            colorHue / colorSaturation → JSON "color": {"h", "s"}
+                               (Dirigera saturation is 0.0-1.0; HA's
+                               JSON schema "s" is 0-100, so *100)
+            colorMode        → ignored (HA derives this from which
+                               fields are present in "color" vs
+                               "color_temp")
+
+        Only fields Dirigera has actually reported are included, so
+        a light that has never reported e.g. colorHue/colorSaturation
+        simply omits "color" rather than guessing a value.
         """
 
         uid = make_unique_id(logical_id)
 
-        if attribute == "isOn":
-            return StatePayload(uid, _bool_to_onoff(value))
+        handled_attrs = {
+            "isOn",
+            "lightLevel",
+            "colorTemperature",
+            "colorHue",
+            "colorSaturation",
+        }
 
-        if attribute == "lightLevel":
-            return StatePayload(uid, str(int(value)))
+        if attribute not in handled_attrs:
+            if attribute in (
+                "colorMode",
+                "startupOnOff",
+                "startUpCurrentLevel",
+                "startupTemperature",
+                "identifyStarted",
+                "identifyPeriod",
+                "permittingJoin",
+                "otaStatus",
+                "otaState",
+                "otaProgress",
+                "otaPolicy",
+                "otaScheduleStart",
+                "otaScheduleEnd",
+            ):
+                return None  # Internal Dirigera fields — do not forward
 
-        if attribute == "colorTemperature":
-            return StatePayload(uid, str(int(value)))
+            logger.debug(
+                "_map_light_state: unhandled attribute '%s' for %s",
+                attribute,
+                logical_id,
+            )
+            return None
 
-        if attribute in ("colorHue", "colorSaturation"):
-            # Published as JSON payload for HA MQTT light JSON schema
-            return StatePayload(uid, json.dumps({attribute: value}))
+        json_state: Dict[str, Any] = {}
 
-        if attribute in (
-            "colorMode",
-            "startupOnOff",
-            "startUpCurrentLevel",
-            "startupTemperature",
-            "identifyStarted",
-            "identifyPeriod",
-            "permittingJoin",
-            "otaStatus",
-            "otaState",
-            "otaProgress",
-            "otaPolicy",
-            "otaScheduleStart",
-            "otaScheduleEnd",
-        ):
-            return None  # Internal Dirigera fields — do not forward
+        if "isOn" in device_attributes:
+            json_state["state"] = _bool_to_onoff(device_attributes["isOn"])
 
-        logger.debug(
-            "_map_light_state: unhandled attribute '%s' for %s",
-            attribute,
-            logical_id,
-        )
-        return None
+        if "lightLevel" in device_attributes:
+            try:
+                json_state["brightness"] = int(device_attributes["lightLevel"])
+            except (TypeError, ValueError):
+                pass
+
+        if "colorTemperature" in device_attributes:
+            try:
+                kelvin = float(device_attributes["colorTemperature"])
+                if kelvin > 0:
+                    json_state["color_temp"] = round(1_000_000 / kelvin)
+            except (TypeError, ValueError, ZeroDivisionError):
+                pass
+
+        hue = device_attributes.get("colorHue")
+        sat = device_attributes.get("colorSaturation")
+        if hue is not None and sat is not None:
+            try:
+                json_state["color"] = {
+                    "h": float(hue),
+                    "s": float(sat) * 100.0,  # Dirigera 0.0-1.0 → HA 0-100
+                }
+            except (TypeError, ValueError):
+                pass
+
+        if not json_state:
+            return None
+
+        return StatePayload(uid, json.dumps(json_state))
 
     @staticmethod
     def _map_outlet_state(
