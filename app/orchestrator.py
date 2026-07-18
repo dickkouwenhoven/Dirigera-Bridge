@@ -431,11 +431,17 @@ class Orchestrator:
             return
 
         # ── Map to HA payload ─────────────────────────────────────────────
+        # device_attributes: the state_cache.set() call above already
+        # wrote this attribute's new value in, so get_device_state()
+        # here returns the full up-to-date snapshot for this device.
+        # Only device_type == "light" currently uses this — see
+        # StateMapper._map_light_state()'s docstring for why.
         state_payload = self._state_mapper.map_state(
             logical_id=logical_id,
             device_type=device_type,
             attribute=attribute,
             value=value,
+            device_attributes=self._state_cache.get_device_state(logical_id),
         )
 
         if state_payload is None:
