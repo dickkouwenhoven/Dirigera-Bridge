@@ -160,7 +160,7 @@ def map_light(
         name=context.device_name,
         unique_id=make_unique_id(lid),
         device_info=device_info,
-        extra=extra,
+        extra={**extra, "has_entity_name": True},
     )
 
     logger.info(
@@ -230,12 +230,32 @@ def _build_light_extra(
                     exc,
                 )
 
+    # ── MQTT light schema — always JSON ──────────────────────────────────
+    #
+    # Originally this used HA's "default" (non-JSON) schema for
+    # everything except full-color lights, since that's the minimal
+    # schema each tier technically needs. In practice this caused a
+    # real bug against a live HA instance: HA's default schema only
+    # accepts brightness/color_temp updates on their own DEDICATED
+    # topics (brightness_state_topic, color_temp_state_topic etc.) —
+    # this bridge was never declaring those, so it had no channel to
+    # deliver brightness/color-temp changes to HA at all, while the
+    # RGB tier's JSON-schema lights expected a single merged JSON
+    # object and were instead receiving separate plain-text publishes.
+    # Both tiers ended up silently stuck, out of sync with the real
+    # device state.
+    #
+    # Every tier now uses "schema": "json" — one state_topic/
+    # command_topic pair per light, carrying a single JSON object
+    # (e.g. {"state": "ON", "brightness": 128, "color_temp": 300}).
+    # This is also the schema HA's own docs now recommend by default,
+    # specifically because it avoids the multi-topic partial-state
+    # problem above. state_mapper.py and command_mapper.py mirror
+    # this — see their light sections for the JSON (de)serialization.
+    extra["schema"] = "json"
+
     # ── Full color (RGB/HS) ──────────────────────────────────────────────
     if has_color_rgb:
-        # Use JSON schema for HA MQTT light — supports color mode
-        # switching (hs vs color_temp) in a single state payload
-        extra["schema"] = "json"
-
         # Supported color modes for HA
         supported_modes = ["hs"]
         if has_color_temp:
