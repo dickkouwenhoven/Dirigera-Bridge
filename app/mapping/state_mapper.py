@@ -132,7 +132,7 @@ class StateMapper:
         device_type: str,
         attribute: str,
         value: Any,
-        device_atrributes: Optional[Dict[str, Any]] = None,
+        device_attributes: Optional[Dict[str, Any]] = None,
     ) -> Optional[StatePayload]:
         """
         Translate a Dirigera attribute change to an HA state payload.
@@ -170,7 +170,7 @@ class StateMapper:
         try:
             if device_type == "light":
                 return self._map_light_state(
-                    logical_id, attribute, device_attributevalues or {}
+                    logical_id, attribute, device_attributes or {}
                 )
 
             if device_type == "outlet":
@@ -1017,7 +1017,6 @@ class StateMapper:
             "backendRegion",
             "backendCountryCode",
             "userConsents",
-            "nextSunRise",
             "permittingJoin",
             "identifyStarted",
             "identifyPeriod",
