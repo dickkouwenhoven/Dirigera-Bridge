@@ -329,11 +329,20 @@ class HAClient:
             await self._sdk.register(entity, command_callback=wrapped_callback)
 
             # ── Update discovery cache ────────────────────────────────────
+            device_name = entity.device_info.get("name") if entity.device_info else None
+            if not device_name:
+                raise DirigeraBridgeError(
+                    ErrorCode.INTERNAL_INVALID_ARGUMENT,
+                    f"register_entity: entity.device_info is missing a "
+                    f"'name' for '{entity.unique_id}' - device must "
+                    f"include a device name for discovery cache registration",
+                )
+
             self._discovery_cache.register(
                 logical_id=entity.unique_id,
                 relation_id=entity.unique_id,
                 ha_domains=[entity.domain.value],
-                device_name=entity.name,
+                device_name=device_name,
             )
 
             self._metrics.increment(MetricName.ENTITY_REGISTERED)
@@ -502,7 +511,6 @@ class HAClient:
         Raises:
             DirigeraBridgeError: MQTT_PUBLISH_FAILED if publish fails.
         """
-
         if not isinstance(entity, Entity):
             raise DirigeraBridgeError(
                 ErrorCode.INTERNAL_INVALID_ARGUMENT,
@@ -524,7 +532,7 @@ class HAClient:
             self._metrics.increment(metric)
             self._metrics.increment(MetricName.MQTT_MESSAGES_PUBLISHED)
 
-            logger.debug(
+            logger.info(
                 "update_availability: '%s' → %s",
                 entity.unique_id,
                 "online" if online else "offline",
