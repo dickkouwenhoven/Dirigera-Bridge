@@ -503,6 +503,10 @@ class DirigeraWebSocketEventData(BaseModel):
     type: str = Field(default="")
     device_type: str = Field(default="", alias="deviceType")
     attributes: DirigeraEventAttributes = Field(default_factory=DirigeraEventAttributes)
+    is_reachable: Optional[bool] = Field(
+        default=None,
+        alias="isReachable",
+    )
 
     @property
     def physical_id(self) -> str:
@@ -526,7 +530,12 @@ class DirigeraWebSocketEventData(BaseModel):
             Dict[str, Any]: Changed attribute name → new value.
         """
 
-        return self.attributes.get_changed()
+        changed = self.attributes.get_changed()
+
+        if self.is_reachable is not None:
+            changed["isReachable"] = self.is_reachable
+
+        return changed
 
 
 # Required for forward reference in DirigeraWebSocketEvent
