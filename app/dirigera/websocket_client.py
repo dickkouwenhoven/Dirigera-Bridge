@@ -168,8 +168,8 @@ class DirigeraWebSocketClient:
         self._stop_event: asyncio.Event = asyncio.Event()
 
         # Background tasks
-        self._listen_task: asyncio.Task[None] | None = None
-        self._ping_task: asyncio.Task[None] | None = None
+        self._listen_task: Optional[asyncio.Task] = None
+        self._ping_task: Optional[asyncio.Task] = None
 
         self._ws_url = f"wss://{settings.dirigera_ip}:{_WS_PORT}{_WS_PATH}"
 
@@ -359,7 +359,9 @@ class DirigeraWebSocketClient:
         async with websockets.connect(
             self._ws_url,
             ssl=ssl_ctx,
-            additional_headers={"Authorization": f"Bearer {self._settings.dirigera_token}"},
+            additional_headers={
+                "Authorization": f"Bearer {self._settings.dirigera_token}"
+            },
             ping_interval=None,  # we manage ping/pong manually
             ping_timeout=None,
             open_timeout=10,
@@ -429,6 +431,7 @@ class DirigeraWebSocketClient:
                 "DirigeraWebSocketClient: raw message received (len=%d)",
                 len(message),
             )
+            logger.info("DirigeraWebSocketClient message: %s", message)
 
             # ── Parse and dispatch ────────────────────────────────────────
             await self._handle_message(message)
@@ -525,7 +528,33 @@ class DirigeraWebSocketClient:
         data = ws_event.data
         logical_id = data.id
         relation_id = data.physical_id
-        changed = data.changed_attributes
+
+        # ---- Reachability - dedicated event, not a generic attribute ----
+        if data.is_reachable is not None:
+            event_type = (
+                EventType.DEVICE_REACHABLE
+                if data.is_reachable
+                else EventType.DEVICE_UNREACHABLE
+            )
+            logger.debug(
+                "DirigeraWebSocketClient: %s for %s",
+                event_type.value,
+                logical_id,
+            )
+            await self._event_bus.publish(
+                DirigeraEvent(
+                    event_type=event_type,
+                    logical_id=logical_id,
+                    relation_id=relation_id,
+                    data={"device_type": data.device_type},
+                )
+            )
+
+        # ---- Odinary changed attributes ---------------
+        # Deliberately data.attriburtes.get_changed() NOT
+        # data.changed_attributes - the latter merges isReachable back
+        # in, which is now handled above and must not also loop below.
+        changed = data.attributes.get_changed()
 
         if not changed:
             logger.debug(
