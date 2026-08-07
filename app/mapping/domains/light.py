@@ -27,8 +27,9 @@ What it does:
     - Produces one HADomain.LIGHT entity per Dirigera light device
     - Detects on/off, brightness, color temperature, and RGB
       capability from canReceive
-    - Sets the correct MQTT light schema (JSON schema for full-color
-      lights, basic schema for simpler lights)
+    - Always uses HA's MQTT light "schema": "json" — see the "MQTT
+      light schema" note in _build_light_extra() for why the earlier
+      basic/JSON split was replaced with this
     - Applies colorTemperatureMin / colorTemperatureMax from
       attributes as mireds for HA color temperature range
 
@@ -59,11 +60,19 @@ Design notes:
       so:
         HA min_mireds = kelvin_to_mireds(colorTemperatureMin)  (cooler K → smaller mireds)
         HA max_mireds = kelvin_to_mireds(colorTemperatureMax)  (warmer K → larger mireds)
-    - The MQTT light JSON schema is used for RGB lights because it
-      supports color mode switching in a single payload. The basic
-      schema is used for simpler lights.
+    - Every light uses HA's MQTT light JSON schema ("schema": "json")
+      — a single state_topic/command_topic pair carrying one JSON
+      object per light, regardless of capability tier. See
+      _build_light_extra()'s "MQTT light schema" note for why.
     - colorMode from Dirigera ('color', 'temperature') maps to HA
       color_mode values ('hs', 'color_temp').
+    - name is set to None with has_entity_name=True (see map_light()),
+      not context.device_name as a literal string. Since HA 2023.8,
+      MQTT entities whose own "name" equals the device's name get the
+      device name prepended a second time in the UI ("Woonkamerverlichting
+      Woonkamerverlichting") — HA's own recommended fix for a
+      single/primary entity representing its whole device is name=None,
+      which makes HA display the device name alone.
 """
 
 from __future__ import annotations
@@ -101,7 +110,7 @@ _ATTR_IS_ON = "isOn"
 
 
 def map_light(
-    context: DeviceContext,
+    context: DeviceContext,  # type: ignore[name-defined]
     device_info: DeviceInfo,
 ) -> List[Entity]:
     """
@@ -122,12 +131,13 @@ def map_light(
     """
 
     lid = context.logical_id
+    name = context.device_name
     capabilities = context.capabilities
     attrs = context.attributes
 
     logger.debug(
         "map_light: mapping light '%s' (logical_id=%s, can_receive=%s)",
-        context.device_name,
+        name,
         lid,
         capabilities,
     )
@@ -157,7 +167,7 @@ def map_light(
 
     entity = Entity(
         domain=HADomain.LIGHT,
-        name=context.device_name,
+        name=name,
         unique_id=make_unique_id(lid),
         device_info=device_info,
         extra={**extra, "has_entity_name": True},
