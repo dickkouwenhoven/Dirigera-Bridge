@@ -77,8 +77,10 @@ services:
     # the broker to be READY. The bridge's retry logic handles the case
     # where the broker takes a moment to become available.
 
-    depends_on:
-      - mosquitto
+
+    # Marked as read, because mosquitto is already running  
+    #    depends_on:
+    #      - mosquitto
 
     # ── Health check ──────────────────────────────────────────────────────
     # Mirrors the "HEALTHCHECK" in the Dockerfile. Docker Compose uses this
@@ -110,26 +112,27 @@ services:
   # already running. If mosquitto is external, remove this section and
   # remove it from depends_on above.
 
-  mosquitto:
-    image: eclipse-mosquitto:latest
-    container_name: mosquitto
-    restart: always
-    networks:
-      - iot_network
-    volumes:
-      - mosquitto_data:/mosquitto/data
-      - mosquitto_log:/mosquitto/log
+  # Section marked as read. Mosquitto is already running
+  #  mosquitto:
+  #    image: eclipse-mosquitto:latest
+  #    container_name: mosquitto
+  #    restart: always
+  #    networks:
+  #      - iot_network
+  #    volumes:
+  #      - mosquitto_data:/mosquitto/data
+  #      - mosquitto_log:/mosquitto/log
       # Mount your mosquitto.conf from the host:
-      - ./mosquitto/config/mosquitto.conf:/mosquitto/config/mosquitto.conf
-    ports:
+      # - ./mosquitto/config/mosquitto.conf:/mosquitto/config/mosquitto.conf
+  #    ports:
       # Expose MQTT port to the host so other containers on the Pi
       # can reach the broker even outside the iot_network if needed.
-      - "1883:1883"
-    logging:
-    driver: json-file
-    options:
-      max-size: "5m"
-      max-file: "3"
+  #      - "1883:1883"
+  #    logging:
+  #      driver: json-file
+  #      options:
+  #        max-size: "5m"
+  #        max-file: "3"
 
 
 # ── Networks ──────────────────────────────────────────────────────────────────
