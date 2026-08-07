@@ -129,7 +129,7 @@ logger = logging.getLogger(__name__)
 
 
 def map_speaker(
-    context: DeviceContext,
+    context: DeviceContext,  # type: ignore[name-defined]
     device_info: DeviceInfo,
 ) -> List[Entity]:
     """
