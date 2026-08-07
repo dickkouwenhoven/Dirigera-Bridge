@@ -14,7 +14,7 @@
 
 # HASDK - entity lifecycle, MQTT discovery, AsyncEntityManager
 # Now available on PyPI: https://pypi.org/project/ha-mqtt-sdk/
-ha_mqtt_sdk>=0.7.0,<2.0
+ha_mqtt_sdk>=0.8.4,<2.0
 
 # ── Core async runtime ───────────────────────────────────────────────────────
 
