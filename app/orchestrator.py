@@ -71,7 +71,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Awaitable, Callable, Dict, List, Optional
+from typing import Any, Awaitable, Callable, Dict, List, Optional
 
 from ha_mqtt_sdk import Entity
 
@@ -154,7 +154,10 @@ class Orchestrator:
         self._entities: Dict[str, Entity] = {}
 
         # Background task handle
-        self._metrics_task: asyncio.Task[None] | None = None
+        self._metrics_task: Optional[asyncio.Task] = None
+
+        # Dedicated tracking dict
+        self._last_reachable: Dict[str, bool] = {}
 
         logger.debug("Orchestrator initialised")
 
@@ -300,8 +303,8 @@ class Orchestrator:
         for context in all_contexts:
             await self._register_context(context)
 
-        # ── Prime state cache ─────────────────────────────────────────────
-        self._prime_state_cache(devices)
+        # ── Publish initial state ─────────────────────────────────────────────
+        await self._publish_initial_state(devices)
 
         logger.info(
             "Orchestrator: device discovery complete — %d entity(ies) registered",
@@ -352,30 +355,78 @@ class Orchestrator:
                     exc,
                 )
 
-    def _prime_state_cache(
+    async def _publish_initial_state(
         self,
         devices: List[DirigeraDevice],
     ) -> None:
         """
-        Pre-populate the state cache with current attribute values from
-        the Dirigera REST discovery response.
+        Publish every device's current REST-discovered attributes to
+        HA, once, at startup.
 
-        Prevents the first WebSocket event from being forwarded to HA
-        as a state change when the value has not actually changed since
-        the bridge started.
+        Replaces the old _prime_state_chache(), which only wrote
+        values into the state cache silently - HA would then only
+        ever learn a value once a live WebSocket event happened to
+        arrive for it. For fast-changing attributes (e.q.
+        illuminance) this self-corrected within seconds and was
+        invisible. For anything slow-changing or purely event-driven
+        (motion, water leak, battery percentage - which can go days
+        between real changes), HA was left showing nothing at all
+        until the first real-world change happened to occur after
+        the bridge started - confirmed from real HA MQTT debug panels
+        showing exactly 0 state messages received for these entities
+        despite corect registration and availability.
+
+        Reuses _process_attribute_change(..., force=True) - the same
+        dedup-bypass path already proven correct for
+        _on_device_reachable()'s reconnect refresh - so this needs no
+        new publish logic, and each attribute is still individually
+        mapped and dropped correctly if unmapped/internal
+        (map_state() returning None), exaclty as during live
+        operation.
+
+        Usess the devices list already fetched by
+        _discover_and_register_devices() (no extra REST calls), and
+        runs AFTER registration so self._entities looksup succeed.
 
         Args:
             devices: Raw device list from rest_client.get_devices().
+
+        Also explicitly publishes each device's own is_reachable
+        field, seperate from the raw_attributes loop below -
+        isReachable is a top-level sibling field on Dirigera's device
+        JSON, never nested inside "attributes", so the ordinary loop
+        never converse it. Some domains (gateway, speaker) expose this
+        as their own dedicated "_reachable" sub-entity - without this,
+        that sub-entity had no value source at all until a live
+        DEVICE_REACHABLE/UNREACHABLE event happened to fire, which for
+        some devices (e.g. the gateway reporting its own reachability
+        to itself) may never actually happen over the WebSocket at
+        all.
         """
 
         total_attrs = 0
         for device in devices:
+            await self._process_attribute_change(
+                logical_id=device.id,
+                device_type=device.device_type,
+                attribute="isReachable",
+                value=device.is_reachable,
+                force=True,
+            )
+
             for attr, value in device.raw_attributes.items():
-                self._state_cache.set(device.id, attr, value)
+                await self._process_attribute_change(
+                    logical_id=device.id,
+                    device_type=device.device_type,
+                    attribute=attr,
+                    value=value,
+                    force=True,
+                )
                 total_attrs += 1
 
-        logger.debug(
-            "Orchestrator: state cache primed — %d attribute(s) across %d device(s)",
+        logger.info(
+            "Orchestrator: initial state published - %d attribute(s) "
+            "across %d device(s)",
             total_attrs,
             len(devices),
         )
@@ -409,75 +460,31 @@ class Orchestrator:
         """
         Handle STATE_CHANGED from the Dirigera WebSocket.
 
-        1. Deduplication — skip if value unchanged (state cache)
-        2. Map attribute → HA payload (state_mapper)
-        3. Publish to HA via ha_client.update_state_direct()
+        Most attributes follow the normal map-and-publish path via
+        _process_attribute_change(). The special attribute
+        'isReachable' indicates that a device has become reachable or
+        unreachable and requires orchestration logic instead of a normal
+        Home Assistant state update.
         """
 
-        logical_id = event.logical_id
         attribute = event.data.get("attribute", "")
         value = event.data.get("value")
-        device_type = event.data.get("device_type", "")
 
-        # ── Deduplication ─────────────────────────────────────────────────
-        changed = self._state_cache.set(logical_id, attribute, value)
-        if not changed:
-            logger.debug(
-                "Orchestrator: unchanged state for %s.%s = %r — skipping",
-                logical_id,
-                attribute,
-                value,
-            )
+        # Device reachability changed
+        if attribute == "isReachable":
+            if value:
+                await self._on_device_reachable(event)
+            else:
+                await self._on_device_unreachable(event)
             return
 
-        # ── Map to HA payload ─────────────────────────────────────────────
-        # device_attributes: the state_cache.set() call above already
-        # wrote this attribute's new value in, so get_device_state()
-        # here returns the full up-to-date snapshot for this device.
-        # Only device_type == "light" currently uses this — see
-        # StateMapper._map_light_state()'s docstring for why.
-        state_payload = self._state_mapper.map_state(
-            logical_id=logical_id,
-            device_type=device_type,
+        # Normal attribute change
+        await self._process_attribute_change(
+            logical_id=event.logical_id,
+            device_type=event.data.get("device_type", ""),
             attribute=attribute,
             value=value,
-            device_attributes=self._state_cache.get_device_state(logical_id),
         )
-
-        if state_payload is None:
-            return  # Internal Dirigera attribute — do not forward
-
-        # ── Publish to HA ─────────────────────────────────────────────────
-        entity = self._entities.get(state_payload.unique_id)
-        if entity is None:
-            logger.debug(
-                "Orchestrator: no entity for unique_id=%s",
-                state_payload.unique_id,
-            )
-            return
-
-        state_topic = self._ha_client.get_state_topic(entity)
-        if not state_topic:
-            logger.debug(
-                "Orchestrator: no state_topic for unique_id=%s",
-                state_payload.unique_id,
-            )
-            return
-
-        try:
-            await self._ha_client.update_state_direct(
-                state_topic=state_topic,
-                payload=state_payload.payload,
-            )
-            self._metrics.increment(MetricName.MAPPING_STATE_UPDATES)
-
-        except DirigeraBridgeError as exc:
-            logger.error(
-                "Orchestrator: failed to publish state for %s: %s",
-                logical_id,
-                exc,
-            )
-            self._metrics.increment(MetricName.ERROR_MQTT)
 
     async def _on_device_discovered(self, event: DirigeraEvent) -> None:
         """
@@ -531,13 +538,25 @@ class Orchestrator:
         self._state_cache.clear_device(logical_id)
         self._discovery_cache.unregister(logical_id)
 
-    async def _on_device_reachable(self, event: DirigeraEvent) -> None:
-        """Handle DEVICE_REACHABLE — mark device entities online."""
-        await self._set_device_availability(event.logical_id, online=True)
-
     async def _on_device_unreachable(self, event: DirigeraEvent) -> None:
-        """Handle DEVICE_UNREACHABLE — mark device entities offline."""
+        """
+        Handle DEVICE_UNREACHABLE — mark device entities offline and
+        republish isReachable for domains with a dedicated
+        "_reachable" sub-entity (see _on_device_reachable()'s
+        docstring."""
+        logger.info("DEVICE_UNREACHABLE: %s", event.logical_id)
         await self._set_device_availability(event.logical_id, online=False)
+
+        device_type = event.data.get("device_type", "") if event.data else ""
+
+        await self._process_attribute_change(
+            logical_id=event.logical_id,
+            device_type=device_type,
+            attribute="isReachable",
+            value=False,
+        )
+
+        self._last_reachable[event.logical_id] = False
 
     async def _on_dirigera_connected(self, _event: DirigeraEvent) -> None:
         """
@@ -649,6 +668,9 @@ class Orchestrator:
                 )
                 return
 
+            logger.info(
+                "Send_command: logical_id=%s attributes=%s", logical_id, cmd.attributes
+            )
             # ── Send to Dirigera REST API ─────────────────────────────────
             try:
                 await self._rest_client.send_command(
@@ -665,7 +687,7 @@ class Orchestrator:
                 )
                 self._metrics.increment(MetricName.ERROR_REST)
 
-        return _handle_command
+        return _handle_command  # type: ignore[return-value]
 
     # ── Helpers ───────────────────────────────────────────────────────────
 
@@ -681,9 +703,16 @@ class Orchestrator:
             logical_id (str): Dirigera logical device id.
             online (bool):    True = online, False = offline.
         """
-
+        logical_id = logical_id.replace("-", "_")
         for unique_id, entity in self._entities.items():
+            logger.info("logical_id is: %s", logical_id)
+            logger.info("unique_id  is: %s", unique_id)
             if logical_id in unique_id:
+                logger.info(
+                    "Availability: %s -> %s",
+                    unique_id,
+                    "online" if online else "offline",
+                )
                 try:
                     await self._ha_client.update_availability(entity, online=online)
                 except DirigeraBridgeError as exc:
@@ -801,3 +830,196 @@ class Orchestrator:
             )
 
         logger.info("Orchestrator: shutdown complete")
+
+    async def _on_device_reachable(self, event: DirigeraEvent) -> None:
+        """
+        Handle DEVICE_REACHABLE - mark device entities online AND
+        refresh their real current state from Dirigera.
+
+        Marking availability alone isn't enough: a device that lost
+        and regained power (e.g. a light on a wall switch) can come
+        back with a real physical state that differs from whatever
+        Dirigera last had cached before the outage - and if
+        Dirigera's own cached isOn value happens to already match,
+        it never emits a fresh WebSocket event, so HA would otherwise
+        show the stale value indefinitely. This matches observed
+        real behavior: toggling the device via the IKEA app (which
+        DOES force a genuine change on Dirigera's side) was the only
+        thing that got HA to catch up.
+
+        Only THIS device is re-fetched (GET /v1/devices/{id}), not
+        the whole fleet - see rest_client.get_device()'s docstring.
+
+        Each attribute goes through _process_attribute_change(), the
+        same dedup-and-publish path as a live WebSocket event, so a
+        reconnect where nothing really changed produces no MQTT
+        traffic at all.
+
+        Only refreshes state on a genuine offline -> online edge, not
+        every message where Dirigera includes isReachable=true
+        alongside an ordinary change (confirmed from real captured
+        traffic that this rides along with unrelated isOn changes
+        routinely, not just reconnects) - otherwise every single
+        toggle while already online would trigger a redundant REST
+        fetch and duplicate publish on top of the normal
+        STATE_CHANGED-driven one for the same event.
+
+        Also republishes isReachable as an ordinary attribute via
+        _process_attribute_change() (normal, non-forced dedup) - some
+        domains (gateway, speaker) expose their own dedicated
+        "_reachable" binary_sensor sub-entity, separate from the
+        availability_topic greyout, and that sub-entity's value comes
+        from this same isReachable signal. This was broken when
+        isReachable was removed from the generic STATE_CHANGED
+        attribute loop to fix availability - confirmed from real HA
+        MQTT debug data showing zero state messages ever received for
+        the gateway's Reachable entity after that fix landed.
+
+        Edge-detection for the REST refresh below uses its own
+        _last_reachable dict, NOT state_cache, specifically to avoid
+        colliding with the ordinary dedup used by the
+        _process_attribute_change() call just above it - both would
+        otherwise consume the same "did isReachable change" signal.
+        """
+        logger.info("DEVICE_REACHABLE: %s", event.logical_id)
+        await self._set_device_availability(event.logical_id, online=True)
+
+        device_type = event.data.get("device_type", "") if event.data else ""
+
+        await self._process_attribute_change(
+            logical_id=event.logical_id,
+            device_type=device_type,
+            attribute="isReachable",
+            value=True,
+        )
+
+        already_reachable = self._last_reachable.get(event.logical_id) is True
+        self._last_reachable[event.logical_id] = True
+        if already_reachable:
+            logger.debug(
+                "Orchestrator: %s already reachable - skipping refresh",
+                event.logical_id,
+            )
+            return
+
+        try:
+            device = await self._rest_client.get_device(event.logical_id)
+            logger.info(
+                "REST refresh: %s attributes=%s",
+                event.logical_id,
+                device.raw_attributes,
+            )
+        except DirigeraBridgeError as exc:
+            logger.warning(
+                "Orchestrator: could not refresh state for reconnected device %s: %s",
+                event.logical_id,
+                exc,
+            )
+            return
+
+        logger.info("raw_attributes contains %d items", len(device.raw_attributes))
+        logger.info("Entering refresh loop")
+        for attribute, value in device.raw_attributes.items():
+            await self._process_attribute_change(
+                logical_id=event.logical_id,
+                device_type=device.device_type,
+                attribute=attribute,
+                value=value,
+                force=True,
+            )
+
+    async def _process_attribute_change(
+        self,
+        logical_id: str,
+        device_type: str,
+        attribute: str,
+        value: Any,
+        force: bool = False,
+    ) -> None:
+        """
+        Dedupe an attribute value against the cache, map it to an HA
+        payload, and publish it — only if the value actually changed.
+
+        Extracted from _on_state_changed() so the exact same logic
+        can be reused by _on_device_reachable()'s reconnect refresh:
+        looping this per-attribute over a freshly re-fetched device
+        means a reconnect only republishes what's genuinely different
+        from what HA already has (via the state_cache dedup below),
+        not the device's unchanged fields and not every other device.
+
+        force: when True, always maps and publishes regardless of
+        what the cache thinks changed - still updates the cache
+        either way. Used by _on_device_reachable()'s reconnect
+        refresh: the cache only reflects what THIS bridge last wrote
+        locally, not what HA actually received. Confirmed against
+        real captured logs that reconnect's REST-refreshed isOn
+        value can exactly match the cache's stale value even though
+        HA never received it - normal dedup would then wrongly
+        suppress the exact publish this refresh exists to send.
+        """
+        # ── Deduplication ─────────────────────────────────────────────────
+        logger.info("PROCESS %s %s=%r", logical_id, attribute, value)
+        changed = self._state_cache.set(logical_id, attribute, value)
+        logger.info(
+            "DEDUP %s %s changed=%s force=%s", logical_id, attribute, changed, force
+        )
+        if not changed and not force:
+            logger.debug(
+                "Orchestrator: unchanged state for %s.%s = %r — skipping",
+                logical_id,
+                attribute,
+                value,
+            )
+            return
+
+        # ── Map to HA payload ─────────────────────────────────────────────
+        state_payload = self._state_mapper.map_state(
+            logical_id=logical_id,
+            device_type=device_type,
+            attribute=attribute,
+            value=value,
+            device_attributes=self._state_cache.get_device_state(logical_id),
+        )
+        logger.info(
+            "MAPPER %s %s -> %r",
+            logical_id,
+            attribute,
+            state_payload,
+        )
+        if state_payload is None:
+            return  # Internal Dirigera attribute — do not forward
+
+        # ── Publish to HA ─────────────────────────────────────────────────
+        entity = self._entities.get(state_payload.unique_id)
+        if entity is None:
+            logger.debug(
+                "Orchestrator: no entity for unique_id=%s",
+                state_payload.unique_id,
+            )
+            return
+
+        state_topic = self._ha_client.get_state_topic(entity)
+        if not state_topic:
+            logger.debug(
+                "Orchestrator: no state_topic for unique_id=%s",
+                state_payload.unique_id,
+            )
+            return
+        logger.info(
+            "MQTT %s payload=%s",
+            state_payload.unique_id,
+            state_payload.payload,
+        )
+        try:
+            await self._ha_client.update_state_direct(
+                state_topic=state_topic,
+                payload=state_payload.payload,
+            )
+            self._metrics.increment(MetricName.MAPPING_STATE_UPDATES)
+        except DirigeraBridgeError as exc:
+            logger.error(
+                "Orchestrator: failed to publish state for %s: %s",
+                logical_id,
+                exc,
+            )
+            self._metrics.increment(MetricName.ERROR_MQTT)
