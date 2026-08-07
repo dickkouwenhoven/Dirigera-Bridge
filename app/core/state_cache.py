@@ -51,7 +51,7 @@ from __future__ import annotations
 
 import copy
 import logging
-from typing import Any, Dict, Optional, Set
+from typing import Any, Dict, Optional, Set, TypeAlias
 
 from .errors import DirigeraBridgeError, ErrorCode
 
@@ -62,10 +62,10 @@ __all__ = [
 logger = logging.getLogger(__name__)
 
 # Internal type alias: maps attribute_name -> value
-_DeviceState = Dict[str, Any]
+_DeviceState: TypeAlias = dict[str, object]
 
 # Internal type alias: maps logical_id -> _DeviceState
-_CacheStore = Dict[str, _DeviceState]
+_CacheStore: TypeAlias = dict[str, _DeviceState]
 
 
 class StateCache:
