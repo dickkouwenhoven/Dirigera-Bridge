@@ -129,6 +129,77 @@ class DirigeraRestClient:
 
     # ── Public API ────────────────────────────────────────────────────────
 
+    async def get_device(self, logical_id: str) -> DirigeraDevice:
+        """
+        Fetch the current state of a single device from the Dirigera hub.
+
+        Calls GET /devices/{id}. Used by the orchestrator to refresh a
+        device's real current state after DEVICE_REACHABLE (e.g. after
+        a power-cycle where the physical device's real state may differ
+        from whatever Dirigera had cached before the outage) — see
+        Orchestrator._on_device_reachable()'s docstring. Deliberately a
+        single-device fetch rather than reusing get_devices(), so a
+        reconnect only costs one lightweight request for the device that
+        actually changed, not a full-fleet re-fetch.
+
+        Args:
+            logical_id (str): Dirigera logical device id.
+
+        Returns:
+            DirigeraDevice: The freshly-fetched device.
+
+        Raises:
+            DirigeraBridgeError: INTERNAL_INVALID_ARGUMENT if logical_id
+                                 is not a non-empty string.
+            DirigeraBridgeError: REST_REQUEST_FAILED if the HTTP request
+                                 fails at the network level.
+            DirigeraBridgeError: REST_AUTHENTICATION_ERROR on HTTP 401/403.
+            DirigeraBridgeError: REST_DEVICE_NOT_FOUND on HTTP 404.
+            DirigeraBridgeError: REST_INVALID_RESPONSE if the response
+                                 body cannot be parsed as a device.
+            DirigeraBridgeError: REST_TIMEOUT if the request times out.
+        """
+        if not isinstance(logical_id, str) or not logical_id.strip():
+            raise DirigeraBridgeError(
+                ErrorCode.INTERNAL_INVALID_ARGUMENT,
+                "get_device: logical_id must be a non-empty string",
+            )
+
+        url = f"{self._base_url}/devices/{logical_id}"
+        logger.debug("Fetching single device from Dirigera hub: %s", logical_id)
+
+        self._metrics.increment(MetricName.REST_REQUESTS_SENT)
+
+        raw_device = await self._get_json(url)
+
+        if not isinstance(raw_device, dict):
+            self._metrics.increment(MetricName.REST_REQUESTS_FAILED)
+            raise DirigeraBridgeError(
+                ErrorCode.REST_INVALID_RESPONSE,
+                f"GET /devices/{logical_id}: expected a JSON object, "
+                f"got {type(raw_device).__name__}",
+            )
+
+        try:
+            device = DirigeraDevice.model_validate(raw_device)
+        except Exception as exc:
+            self._metrics.increment(MetricName.REST_REQUESTS_FAILED)
+            raise DirigeraBridgeError(
+                ErrorCode.REST_INVALID_RESPONSE,
+                f"GET /devices/{logical_id}: failed to parse device: {exc}",
+                cause=exc,
+            )
+
+        self._metrics.increment(MetricName.REST_REQUESTS_SUCCESS)
+        logger.debug(
+            "Single device fetched: %s (device_type=%s, reachable=%s)",
+            device.id,
+            device.device_type,
+            device.is_reachable,
+        )
+
+        return device
+
     async def get_devices(self) -> List[DirigeraDevice]:
         """
         Fetch the complete device list from the Dirigera hub.
@@ -258,7 +329,8 @@ class DirigeraRestClient:
             )
 
         # ── Build request ─────────────────────────────────────────────────
-        url = f"{self._base_url}/devices/{logical_id}/attributes"
+        # url = f"{self._base_url}/devices/{logical_id}/attributes"
+        url = f"{self._base_url}/devices/{logical_id}"
         payload = [{"attributes": attributes}]
 
         logger.debug(
