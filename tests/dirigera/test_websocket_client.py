@@ -24,8 +24,7 @@ Covers:
 import asyncio
 import json
 import ssl
-from collections.abc import AsyncGenerator
-from types import CoroutineType
+from collections.abc import AsyncGenerator, Coroutine
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -515,7 +514,7 @@ class TestConnectionLoop:
         task = MagicMock()
 
         def create_task(
-            coroutine: CoroutineType[Any, Any, None],
+            coroutine: Coroutine[Any, Any, None],
             **_kwargs: dict[str, dict[str, Any]],
         ) -> MagicMock:
             coroutine.close()
