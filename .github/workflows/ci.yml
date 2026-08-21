@@ -51,7 +51,7 @@ jobs:
       - name: Run tests
         run: |
           pytest \
-            --cov=ha_mqtt_sdk \
+            --cov=dirigera_bridge \
             --cov-report=term-missing \
             --cov-report=xml \
             --cov-fail-under=100 \
