@@ -51,7 +51,7 @@ jobs:
       - name: Run tests
         run: |
           pytest \
-            --cov=dirigera_bridge \
+            --cov \
             --cov-report=term-missing \
             --cov-report=xml \
             --cov-fail-under=100 \
