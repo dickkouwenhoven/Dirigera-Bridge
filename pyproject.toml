@@ -38,6 +38,7 @@ dependencies = [
 	"aiomqtt>=2.5.1",
 	"ha_mqtt_sdk>=0.7.0",
 	"pydantic>=2.13.4",
+	"python-dotenv>=1.2.3,<2.0",
 ]
 
 [project.optional-dependencies]
