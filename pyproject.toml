@@ -107,7 +107,7 @@ testpaths = ["tests"]
 python_files = ["test_*.py"]
 
 [tool.coverage.run]
-source = ["dirigera_bridge"]
+source = ["app"]
 branch = true
 
 [tool.coverage.report]
