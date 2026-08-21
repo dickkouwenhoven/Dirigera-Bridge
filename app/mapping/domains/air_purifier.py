@@ -59,13 +59,10 @@ Design notes:
 from __future__ import annotations
 
 import logging
-from typing import List
+
+from ha_mqtt_sdk import DeviceInfo, Entity, HADomain
 
 from ..device_registry import DeviceContext
-from ha_mqtt_sdk import HADomain
-from ha_mqtt_sdk import Entity
-from ha_mqtt_sdk import DeviceInfo
-
 from . import make_unique_id
 
 __all__ = [
@@ -88,7 +85,7 @@ _FAN_PRESET_MODES = ["auto"]
 def map_air_purifier(
     context: DeviceContext,
     device_info: DeviceInfo,
-) -> List[Entity]:
+) -> list[Entity]:
     """
     Map a Dirigera airPurifier DeviceContext to HA entities.
 
@@ -104,7 +101,7 @@ def map_air_purifier(
                                   grouping in HA.
 
     Returns:
-        List[Entity]: Between 1 and 3 entities depending on which
+        list[Entity]: Between 1 and 3 entities depending on which
                       monitoring attributes are present.
     """
 
@@ -118,7 +115,7 @@ def map_air_purifier(
         lid,
     )
 
-    entities: List[Entity] = [
+    entities: list[Entity] = [
         _make_fan(
             logical_id=lid,
             name=name,

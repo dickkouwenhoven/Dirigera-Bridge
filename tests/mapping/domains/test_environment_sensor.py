@@ -15,15 +15,19 @@ Covers:
     - DEVICE_TYPES registry
 """
 
-import pytest
+from typing import Any
 
+import pytest
+from ha_mqtt_sdk import DeviceInfo
+
+from app.mapping import DeviceContext
 from app.mapping.domains.environment_sensor import (
     DEVICE_TYPES,
     map_environment_sensor,
 )
 
 
-class MockDeviceInfo(dict):
+class MockDeviceInfo(DeviceInfo):
     """
     Minimal DeviceInfo double for domain-mapper unit tests.
 
@@ -37,16 +41,17 @@ class MockDeviceInfo(dict):
     pass
 
 
-class MockAttrs:
-    def __init__(self, d):
+class MockAttrs(dict[str, Any]):
+    def __init__(self, d: Any):
+        super().__init__()
         self._d = d
 
-    def get(self, k, default=None):
+    def get(self, k: Any, default: Any = None) -> Any:
         return self._d.get(k, default)
 
 
-class MockContext:
-    def __init__(self, attrs, name="Hygrometer", lid="env_abc_1"):
+class MockContext(DeviceContext):
+    def __init__(self, attrs: Any, name: str = "Hygrometer", lid: str = "env_abc_1") -> None:
         self.logical_id = lid
         self.device_name = name
         self.attributes = MockAttrs(attrs)
@@ -62,35 +67,35 @@ FULL_ATTRS = {
 
 class TestMapEnvironmentSensorEntityCount:
     @pytest.mark.unit
-    def test_full_vindstyrka_produces_four(self):
+    def test_full_vindstyrka_produces_four(self) -> None:
         """Full VINDSTYRKA attrs → 4 entities."""
         ctx = MockContext(FULL_ATTRS)
         result = map_environment_sensor(ctx, MockDeviceInfo())
         assert len(result) == 4
 
     @pytest.mark.unit
-    def test_partial_attrs_produce_fewer_entities(self):
+    def test_partial_attrs_produce_fewer_entities(self) -> None:
         """Only temperature + humidity → 2 entities."""
         ctx = MockContext({"currentTemperature": 20, "currentRH": 50})
         result = map_environment_sensor(ctx, MockDeviceInfo())
         assert len(result) == 2
 
     @pytest.mark.unit
-    def test_empty_attrs_produce_no_entities(self):
+    def test_empty_attrs_produce_no_entities(self) -> None:
         """No measurement attrs → 0 entities."""
         ctx = MockContext({})
         result = map_environment_sensor(ctx, MockDeviceInfo())
         assert len(result) == 0
 
     @pytest.mark.unit
-    def test_zero_values_not_filtered(self):
+    def test_zero_values_not_filtered(self) -> None:
         """Zero measurement values are valid."""
         ctx = MockContext({"currentTemperature": 0, "currentPM25": 0})
         result = map_environment_sensor(ctx, MockDeviceInfo())
         assert len(result) == 2
 
     @pytest.mark.unit
-    def test_no_battery_entity(self):
+    def test_no_battery_entity(self) -> None:
         """No battery entity (VINDSTYRKA is mains powered)."""
         ctx = MockContext(FULL_ATTRS)
         result = map_environment_sensor(ctx, MockDeviceInfo())
@@ -100,7 +105,7 @@ class TestMapEnvironmentSensorEntityCount:
 
 class TestMapEnvironmentSensorConfig:
     @pytest.mark.unit
-    def test_temperature_config(self):
+    def test_temperature_config(self) -> None:
         """Temperature entity has correct config."""
         ctx = MockContext({"currentTemperature": 20})
         result = map_environment_sensor(ctx, MockDeviceInfo())
@@ -110,7 +115,7 @@ class TestMapEnvironmentSensorConfig:
         assert temp.extra["state_class"] == "measurement"
 
     @pytest.mark.unit
-    def test_humidity_config(self):
+    def test_humidity_config(self) -> None:
         """Humidity entity has correct config."""
         ctx = MockContext({"currentRH": 50})
         result = map_environment_sensor(ctx, MockDeviceInfo())
@@ -119,7 +124,7 @@ class TestMapEnvironmentSensorConfig:
         assert hum.extra["unit_of_measurement"] == "%"
 
     @pytest.mark.unit
-    def test_pm25_config(self):
+    def test_pm25_config(self) -> None:
         """PM2.5 entity has correct config."""
         ctx = MockContext({"currentPM25": 3})
         result = map_environment_sensor(ctx, MockDeviceInfo())
@@ -128,7 +133,7 @@ class TestMapEnvironmentSensorConfig:
         assert pm.extra["unit_of_measurement"] == "µg/m³"
 
     @pytest.mark.unit
-    def test_voc_config(self):
+    def test_voc_config(self) -> None:
         """VOC entity has correct device_class and no unit."""
         ctx = MockContext({"vocIndex": 158})
         result = map_environment_sensor(ctx, MockDeviceInfo())
@@ -137,17 +142,18 @@ class TestMapEnvironmentSensorConfig:
         assert "unit_of_measurement" not in voc.extra
 
     @pytest.mark.unit
-    def test_all_entity_names_contain_device_name(self):
+    def test_all_entity_names_contain_device_name(self) -> None:
         """All entity names contain device name."""
         ctx = MockContext(FULL_ATTRS, name="Hygrometer Woonkamer")
         result = map_environment_sensor(ctx, MockDeviceInfo())
         for entity in result:
+            assert isinstance(entity.name, str)
             assert "Hygrometer Woonkamer" in entity.name
 
 
 class TestMapEnvironmentSensorUniqueIds:
     @pytest.mark.unit
-    def test_all_unique_ids_distinct(self):
+    def test_all_unique_ids_distinct(self) -> None:
         """All 4 unique_ids are distinct."""
         ctx = MockContext(FULL_ATTRS, lid="env_1")
         result = map_environment_sensor(ctx, MockDeviceInfo())
@@ -155,7 +161,7 @@ class TestMapEnvironmentSensorUniqueIds:
         assert len(uids) == len(set(uids))
 
     @pytest.mark.unit
-    def test_correct_suffixes(self):
+    def test_correct_suffixes(self) -> None:
         """All four suffixes are present."""
         ctx = MockContext(FULL_ATTRS, lid="env_1")
         result = map_environment_sensor(ctx, MockDeviceInfo())
@@ -166,7 +172,7 @@ class TestMapEnvironmentSensorUniqueIds:
         assert any("voc" in u for u in uids)
 
     @pytest.mark.unit
-    def test_real_vindstyrka_fixture(self, vindstyrka_raw):
+    def test_real_vindstyrka_fixture(self, vindstyrka_raw: dict[str, Any]) -> None:
         """Real VINDSTYRKA fixture maps to 4 entities."""
         from app.dirigera.models import DirigeraDevice
         from app.mapping.device_registry import build_device_contexts
@@ -181,9 +187,9 @@ class TestMapEnvironmentSensorUniqueIds:
 
 class TestEnvironmentSensorDeviceTypes:
     @pytest.mark.unit
-    def test_key_registered(self):
+    def test_key_registered(self) -> None:
         assert "environmentSensor" in DEVICE_TYPES
 
     @pytest.mark.unit
-    def test_only_one_key(self):
+    def test_only_one_key(self) -> None:
         assert len(DEVICE_TYPES) == 1

@@ -24,17 +24,17 @@ Covers:
 """
 
 import pytest
+from ha_mqtt_sdk import HADomain
 
-from app.core.discovery_cache import RegistrationRecord
+from app.core.discovery_cache import DiscoveryCache, RegistrationRecord
 from app.core.errors import DirigeraBridgeError, ErrorCode
-
 
 # ── RegistrationRecord ────────────────────────────────────────────────────────
 
 
 class TestRegistrationRecord:
     @pytest.mark.unit
-    def test_is_frozen(self):
+    def test_is_frozen(self) -> None:
         """RegistrationRecord is immutable (frozen dataclass)."""
         record = RegistrationRecord(
             logical_id="abc_1",
@@ -43,10 +43,11 @@ class TestRegistrationRecord:
             device_name="Test Light",
         )
         with pytest.raises((AttributeError, TypeError)):
-            record.logical_id = "changed"
+            # noinspection dataclass
+            record.logical_id = "changed"  # type: ignore[misc]
 
     @pytest.mark.unit
-    def test_fields_accessible(self):
+    def test_fields_accessible(self) -> None:
         """All fields are accessible as attributes."""
         record = RegistrationRecord(
             logical_id="abc_1",
@@ -60,7 +61,7 @@ class TestRegistrationRecord:
         assert record.device_name == "Motion Sensor"
 
     @pytest.mark.unit
-    def test_ha_domains_is_frozenset(self):
+    def test_ha_domains_is_frozenset(self) -> None:
         """ha_domains is stored as a frozenset."""
         record = RegistrationRecord(
             logical_id="abc_1",
@@ -76,14 +77,14 @@ class TestRegistrationRecord:
 
 class TestDiscoveryCacheInitialState:
     @pytest.mark.unit
-    def test_initially_empty(self, discovery_cache):
+    def test_initially_empty(self, discovery_cache: DiscoveryCache) -> None:
         """Fresh cache has no registrations."""
         assert discovery_cache.registered_count() == 0
         assert discovery_cache.relation_count() == 0
         assert discovery_cache.get_all_logical_ids() == set()
 
     @pytest.mark.unit
-    def test_snapshot_initially_empty(self, discovery_cache):
+    def test_snapshot_initially_empty(self, discovery_cache: DiscoveryCache) -> None:
         """snapshot() returns empty dict on fresh cache."""
         assert discovery_cache.snapshot() == {}
 
@@ -93,7 +94,7 @@ class TestDiscoveryCacheInitialState:
 
 class TestRegisterSingleDevice:
     @pytest.mark.unit
-    def test_register_single_device(self, discovery_cache):
+    def test_register_single_device(self, discovery_cache: DiscoveryCache) -> None:
         """Can register a single-deviceType device."""
         discovery_cache.register(
             logical_id="light_1",
@@ -106,7 +107,7 @@ class TestRegisterSingleDevice:
         assert discovery_cache.relation_count() == 1
 
     @pytest.mark.unit
-    def test_registered_domains_correct(self, discovery_cache):
+    def test_registered_domains_correct(self, discovery_cache: DiscoveryCache) -> None:
         """get_registered_domains returns correct domains."""
         discovery_cache.register(
             logical_id="outlet_1",
@@ -118,7 +119,7 @@ class TestRegisterSingleDevice:
         assert domains == frozenset({"switch", "sensor"})
 
     @pytest.mark.unit
-    def test_get_record_returns_correct_record(self, discovery_cache):
+    def test_get_record_returns_correct_record(self, discovery_cache: DiscoveryCache) -> None:
         """get_record returns the correct RegistrationRecord."""
         discovery_cache.register(
             logical_id="light_1",
@@ -141,7 +142,7 @@ class TestRegisterMultiDeviceType:
     RELATION = "fff75d00-607c-4f23-a0e7-3dbed0e18b12"
 
     @pytest.mark.unit
-    def test_register_both_siblings(self, discovery_cache):
+    def test_register_both_siblings(self, discovery_cache: DiscoveryCache) -> None:
         """Registering both VALLHORN siblings works correctly."""
         discovery_cache.register(
             logical_id=self.RELATION + "_1",
@@ -160,7 +161,10 @@ class TestRegisterMultiDeviceType:
         assert discovery_cache.relation_count() == 1
 
     @pytest.mark.unit
-    def test_get_logical_ids_for_relation_returns_both(self, discovery_cache):
+    def test_get_logical_ids_for_relation_returns_both(
+        self,
+        discovery_cache: DiscoveryCache,
+    ) -> None:
         """get_logical_ids_for_relation returns both sibling ids."""
         discovery_cache.register(
             logical_id=self.RELATION + "_1",
@@ -182,7 +186,7 @@ class TestRegisterMultiDeviceType:
         }
 
     @pytest.mark.unit
-    def test_each_sibling_has_independent_domains(self, discovery_cache):
+    def test_each_sibling_has_independent_domains(self, discovery_cache: DiscoveryCache) -> None:
         """Each sibling has its own ha_domains."""
         discovery_cache.register(
             logical_id=self.RELATION + "_1",
@@ -209,7 +213,7 @@ class TestRegisterMultiDeviceType:
 
 class TestRegisterIdempotent:
     @pytest.mark.unit
-    def test_re_register_updates_record(self, discovery_cache):
+    def test_re_register_updates_record(self, discovery_cache: DiscoveryCache) -> None:
         """Re-registering an existing logical_id updates the record."""
         discovery_cache.register(
             logical_id="light_1",
@@ -226,11 +230,15 @@ class TestRegisterIdempotent:
 
         assert discovery_cache.registered_count() == 1
         record = discovery_cache.get_record("light_1")
+        assert record is not None
         assert record.ha_domains == frozenset({"light", "sensor"})
         assert record.device_name == "New Name"
 
     @pytest.mark.unit
-    def test_re_register_does_not_duplicate_in_secondary_index(self, discovery_cache):
+    def test_re_register_does_not_duplicate_in_secondary_index(
+        self,
+        discovery_cache: DiscoveryCache,
+    ) -> None:
         """Re-registering does not add duplicate entries to the relation index."""
         discovery_cache.register(
             logical_id="light_1",
@@ -254,7 +262,7 @@ class TestRegisterIdempotent:
 
 class TestRegisterValidation:
     @pytest.mark.unit
-    def test_empty_logical_id_raises(self, discovery_cache):
+    def test_empty_logical_id_raises(self, discovery_cache: DiscoveryCache) -> None:
         """Empty logical_id raises DirigeraBridgeError."""
         with pytest.raises(DirigeraBridgeError) as exc_info:
             discovery_cache.register(
@@ -266,7 +274,7 @@ class TestRegisterValidation:
         assert exc_info.value.code == ErrorCode.INTERNAL_INVALID_ARGUMENT
 
     @pytest.mark.unit
-    def test_empty_relation_id_raises(self, discovery_cache):
+    def test_empty_relation_id_raises(self, discovery_cache: DiscoveryCache) -> None:
         """Empty relation_id raises DirigeraBridgeError."""
         with pytest.raises(DirigeraBridgeError) as exc_info:
             discovery_cache.register(
@@ -278,7 +286,7 @@ class TestRegisterValidation:
         assert exc_info.value.code == ErrorCode.INTERNAL_INVALID_ARGUMENT
 
     @pytest.mark.unit
-    def test_empty_ha_domains_raises(self, discovery_cache):
+    def test_empty_ha_domains_raises(self, discovery_cache: DiscoveryCache) -> None:
         """Empty ha_domains list raises DirigeraBridgeError."""
         with pytest.raises(DirigeraBridgeError) as exc_info:
             discovery_cache.register(
@@ -290,7 +298,7 @@ class TestRegisterValidation:
         assert exc_info.value.code == ErrorCode.INTERNAL_INVALID_ARGUMENT
 
     @pytest.mark.unit
-    def test_empty_domain_string_raises(self, discovery_cache):
+    def test_empty_domain_string_raises(self, discovery_cache: DiscoveryCache) -> None:
         """ha_domains containing an empty string raises."""
         with pytest.raises(DirigeraBridgeError) as exc_info:
             discovery_cache.register(
@@ -302,7 +310,7 @@ class TestRegisterValidation:
         assert exc_info.value.code == ErrorCode.INTERNAL_INVALID_ARGUMENT
 
     @pytest.mark.unit
-    def test_empty_device_name_raises(self, discovery_cache):
+    def test_empty_device_name_raises(self, discovery_cache: DiscoveryCache) -> None:
         """Empty device_name raises DirigeraBridgeError."""
         with pytest.raises(DirigeraBridgeError) as exc_info:
             discovery_cache.register(
@@ -321,7 +329,7 @@ class TestUnregister:
     RELATION = "fff75d00-607c-4f23-a0e7-3dbed0e18b12"
 
     @pytest.mark.unit
-    def test_unregister_removes_device(self, discovery_cache):
+    def test_unregister_removes_device(self, discovery_cache: DiscoveryCache) -> None:
         """unregister removes the logical_id from the primary index."""
         discovery_cache.register(
             logical_id="light_1",
@@ -335,7 +343,7 @@ class TestUnregister:
         assert discovery_cache.registered_count() == 0
 
     @pytest.mark.unit
-    def test_unregister_cleans_secondary_index(self, discovery_cache):
+    def test_unregister_cleans_secondary_index(self, discovery_cache: DiscoveryCache) -> None:
         """unregister removes the entry from the relation index."""
         discovery_cache.register(
             logical_id="light_1",
@@ -349,7 +357,7 @@ class TestUnregister:
         assert discovery_cache.relation_count() == 0
 
     @pytest.mark.unit
-    def test_unregister_sibling_keeps_relation(self, discovery_cache):
+    def test_unregister_sibling_keeps_relation(self, discovery_cache: DiscoveryCache) -> None:
         """Unregistering one sibling keeps the relation in secondary index."""
         discovery_cache.register(
             logical_id=self.RELATION + "_1",
@@ -371,7 +379,10 @@ class TestUnregister:
         assert siblings == {self.RELATION + "_1"}
 
     @pytest.mark.unit
-    def test_unregister_last_sibling_removes_relation(self, discovery_cache):
+    def test_unregister_last_sibling_removes_relation(
+        self,
+        discovery_cache: DiscoveryCache,
+    ) -> None:
         """Unregistering the last sibling removes the relation_id."""
         discovery_cache.register(
             logical_id=self.RELATION + "_1",
@@ -385,9 +396,31 @@ class TestUnregister:
         assert discovery_cache.get_logical_ids_for_relation(self.RELATION) == set()
 
     @pytest.mark.unit
-    def test_unregister_unknown_is_noop(self, discovery_cache):
+    def test_unregister_unknown_is_noop(self, discovery_cache: DiscoveryCache) -> None:
         """unregister for unknown logical_id does not raise."""
         discovery_cache.unregister("nonexistent_id")
+
+    @pytest.mark.unit
+    def test_unregister_when_relation_id_index_is_missing(
+        self,
+        discovery_cache: DiscoveryCache,
+    ) -> None:
+        logical_id = "logical-123"
+        relation_id = "relation-456"
+
+        discovery_cache.register(
+            logical_id=logical_id,
+            relation_id=relation_id,
+            device_name="Test Device",
+            ha_domains=[HADomain.SENSOR],
+        )
+
+        # Remove the secondary index entry so unregister() encounters None.
+        discovery_cache._by_relation_id.pop(relation_id)
+
+        discovery_cache.unregister(logical_id)
+
+        assert logical_id not in discovery_cache._by_logical_id
 
 
 # ── is_registered() ───────────────────────────────────────────────────────────
@@ -395,7 +428,7 @@ class TestUnregister:
 
 class TestIsRegistered:
     @pytest.mark.unit
-    def test_returns_true_for_registered(self, discovery_cache):
+    def test_returns_true_for_registered(self, discovery_cache: DiscoveryCache) -> None:
         """is_registered returns True for a registered device."""
         discovery_cache.register(
             logical_id="light_1",
@@ -406,12 +439,12 @@ class TestIsRegistered:
         assert discovery_cache.is_registered("light_1") is True
 
     @pytest.mark.unit
-    def test_returns_false_for_unregistered(self, discovery_cache):
+    def test_returns_false_for_unregistered(self, discovery_cache: DiscoveryCache) -> None:
         """is_registered returns False for an unregistered device."""
         assert discovery_cache.is_registered("unknown_id") is False
 
     @pytest.mark.unit
-    def test_returns_false_after_unregister(self, discovery_cache):
+    def test_returns_false_after_unregister(self, discovery_cache: DiscoveryCache) -> None:
         """is_registered returns False after unregistering."""
         discovery_cache.register(
             logical_id="light_1",
@@ -423,7 +456,7 @@ class TestIsRegistered:
         assert discovery_cache.is_registered("light_1") is False
 
     @pytest.mark.unit
-    def test_empty_id_raises(self, discovery_cache):
+    def test_empty_id_raises(self, discovery_cache: DiscoveryCache) -> None:
         """is_registered raises for empty logical_id."""
         with pytest.raises(DirigeraBridgeError) as exc_info:
             discovery_cache.is_registered("")
@@ -435,7 +468,7 @@ class TestIsRegistered:
 
 class TestGetAllLogicalIds:
     @pytest.mark.unit
-    def test_returns_all_ids(self, discovery_cache):
+    def test_returns_all_ids(self, discovery_cache: DiscoveryCache) -> None:
         """Returns the set of all registered logical_ids."""
         discovery_cache.register("id_1", "id_1", ["light"], "Device 1")
         discovery_cache.register("id_2", "id_2", ["sensor"], "Device 2")
@@ -444,7 +477,7 @@ class TestGetAllLogicalIds:
         assert ids == {"id_1", "id_2"}
 
     @pytest.mark.unit
-    def test_returns_copy(self, discovery_cache):
+    def test_returns_copy(self, discovery_cache: DiscoveryCache) -> None:
         """Returns a copy — mutating it does not affect the cache."""
         discovery_cache.register("id_1", "id_1", ["light"], "Device 1")
         ids = discovery_cache.get_all_logical_ids()
@@ -458,19 +491,19 @@ class TestGetAllLogicalIds:
 
 class TestGetLogicalIdsForRelation:
     @pytest.mark.unit
-    def test_single_device_returns_set_of_one(self, discovery_cache):
+    def test_single_device_returns_set_of_one(self, discovery_cache: DiscoveryCache) -> None:
         """Single-deviceType device returns a set with one id."""
         discovery_cache.register("light_1", "light_1", ["light"], "Light")
         result = discovery_cache.get_logical_ids_for_relation("light_1")
         assert result == {"light_1"}
 
     @pytest.mark.unit
-    def test_unknown_relation_returns_empty_set(self, discovery_cache):
+    def test_unknown_relation_returns_empty_set(self, discovery_cache: DiscoveryCache) -> None:
         """Unknown relation_id returns an empty set."""
         assert discovery_cache.get_logical_ids_for_relation("unknown") == set()
 
     @pytest.mark.unit
-    def test_returns_copy(self, discovery_cache):
+    def test_returns_copy(self, discovery_cache: DiscoveryCache) -> None:
         """Returns a copy — mutating it does not affect the cache."""
         discovery_cache.register("light_1", "light_1", ["light"], "Light")
         result = discovery_cache.get_logical_ids_for_relation("light_1")
@@ -484,7 +517,7 @@ class TestGetLogicalIdsForRelation:
 
 class TestClear:
     @pytest.mark.unit
-    def test_clear_wipes_all(self, discovery_cache):
+    def test_clear_wipes_all(self, discovery_cache: DiscoveryCache) -> None:
         """clear() removes all registrations from both indexes."""
         discovery_cache.register("id_1", "id_1", ["light"], "Device 1")
         discovery_cache.register("id_2", "id_2", ["sensor"], "Device 2")
@@ -496,13 +529,13 @@ class TestClear:
         assert discovery_cache.get_all_logical_ids() == set()
 
     @pytest.mark.unit
-    def test_clear_empty_cache_is_noop(self, discovery_cache):
+    def test_clear_empty_cache_is_noop(self, discovery_cache: DiscoveryCache) -> None:
         """clear() on empty cache does not raise."""
         discovery_cache.clear()
         assert discovery_cache.registered_count() == 0
 
     @pytest.mark.unit
-    def test_can_register_after_clear(self, discovery_cache):
+    def test_can_register_after_clear(self, discovery_cache: DiscoveryCache) -> None:
         """Cache is usable after clear()."""
         discovery_cache.register("id_1", "id_1", ["light"], "Test")
         discovery_cache.clear()
@@ -515,7 +548,7 @@ class TestClear:
 
 class TestSnapshot:
     @pytest.mark.unit
-    def test_snapshot_contains_records(self, discovery_cache):
+    def test_snapshot_contains_records(self, discovery_cache: DiscoveryCache) -> None:
         """snapshot() contains the registered RegistrationRecords."""
         discovery_cache.register("light_1", "light_1", ["light"], "Test")
         snap = discovery_cache.snapshot()
@@ -524,15 +557,20 @@ class TestSnapshot:
         assert isinstance(snap["light_1"], RegistrationRecord)
 
     @pytest.mark.unit
-    def test_snapshot_is_copy(self, discovery_cache):
+    def test_snapshot_is_copy(self, discovery_cache: DiscoveryCache) -> None:
         """Mutating the snapshot does not affect the cache."""
         discovery_cache.register("light_1", "light_1", ["light"], "Test")
         snap = discovery_cache.snapshot()
-        snap["injected"] = None
+        snap["injected"] = RegistrationRecord(
+            logical_id="injected",
+            relation_id="injected",
+            ha_domains=frozenset({"light"}),
+            device_name="Injected",
+        )
 
         assert "injected" not in discovery_cache.get_all_logical_ids()
 
     @pytest.mark.unit
-    def test_snapshot_empty_cache(self, discovery_cache):
+    def test_snapshot_empty_cache(self, discovery_cache: DiscoveryCache) -> None:
         """snapshot() of empty cache returns empty dict."""
         assert discovery_cache.snapshot() == {}

@@ -13,12 +13,16 @@ Covers:
     - Both keys point to the same mapper function
 """
 
-import pytest
+from typing import Any
 
+import pytest
+from ha_mqtt_sdk import DeviceInfo
+
+from app.mapping import DeviceContext
 from app.mapping.domains.button import DEVICE_TYPES, map_button
 
 
-class MockDeviceInfo(dict):
+class MockDeviceInfo(DeviceInfo):
     """
     Minimal DeviceInfo double for domain-mapper unit tests.
 
@@ -32,16 +36,17 @@ class MockDeviceInfo(dict):
     pass
 
 
-class MockAttrs:
-    def __init__(self, d):
+class MockAttrs(dict[str, Any]):
+    def __init__(self, d: Any):
+        super().__init__()
         self._d = d
 
-    def get(self, k, default=None):
+    def get(self, k: Any, default: Any = None) -> Any:
         return self._d.get(k, default)
 
 
-class MockContext:
-    def __init__(self, attrs=None, name="Shortcut Button", lid="button_abc_1"):
+class MockContext(DeviceContext):
+    def __init__(self, attrs: Any = None, name: str = "Shortcut Button", lid: str = "button_abc_1"):
         self.logical_id = lid
         self.device_name = name
         self.attributes = MockAttrs(attrs or {})
@@ -49,28 +54,28 @@ class MockContext:
 
 class TestMapButton:
     @pytest.mark.unit
-    def test_without_battery_produces_one_entity(self):
+    def test_without_battery_produces_one_entity(self) -> None:
         """No battery → 1 event entity."""
         ctx = MockContext()
         result = map_button(ctx, MockDeviceInfo())
         assert len(result) == 1
 
     @pytest.mark.unit
-    def test_with_battery_produces_two_entities(self):
+    def test_with_battery_produces_two_entities(self) -> None:
         """With battery → 2 entities."""
         ctx = MockContext({"batteryPercentage": 85})
         result = map_button(ctx, MockDeviceInfo())
         assert len(result) == 2
 
     @pytest.mark.unit
-    def test_primary_entity_is_event_domain(self):
+    def test_primary_entity_is_event_domain(self) -> None:
         """Primary entity domain is 'event'."""
         ctx = MockContext()
         result = map_button(ctx, MockDeviceInfo())
         assert result[0].domain.value == "event"
 
     @pytest.mark.unit
-    def test_event_types_present(self):
+    def test_event_types_present(self) -> None:
         """Entity has event_types list."""
         ctx = MockContext()
         result = map_button(ctx, MockDeviceInfo())
@@ -78,28 +83,28 @@ class TestMapButton:
         assert len(result[0].extra["event_types"]) > 0
 
     @pytest.mark.unit
-    def test_event_types_contain_short_release(self):
+    def test_event_types_contain_short_release(self) -> None:
         """event_types includes shortRelease."""
         ctx = MockContext()
         result = map_button(ctx, MockDeviceInfo())
         assert "shortRelease" in result[0].extra["event_types"]
 
     @pytest.mark.unit
-    def test_event_types_contain_long_release(self):
+    def test_event_types_contain_long_release(self) -> None:
         """event_types includes longRelease."""
         ctx = MockContext()
         result = map_button(ctx, MockDeviceInfo())
         assert "longRelease" in result[0].extra["event_types"]
 
     @pytest.mark.unit
-    def test_event_types_contain_double_press(self):
+    def test_event_types_contain_double_press(self) -> None:
         """event_types includes doublePress."""
         ctx = MockContext()
         result = map_button(ctx, MockDeviceInfo())
         assert "doublePress" in result[0].extra["event_types"]
 
     @pytest.mark.unit
-    def test_no_off_variants_in_event_types(self):
+    def test_no_off_variants_in_event_types(self) -> None:
         """Button has no _off event variants (unlike lightController)."""
         ctx = MockContext()
         result = map_button(ctx, MockDeviceInfo())
@@ -107,7 +112,7 @@ class TestMapButton:
         assert not any("_off" in et for et in event_types)
 
     @pytest.mark.unit
-    def test_battery_entity_config(self):
+    def test_battery_entity_config(self) -> None:
         """Battery entity has correct config."""
         ctx = MockContext({"batteryPercentage": 85}, lid="button_1")
         result = map_button(ctx, MockDeviceInfo())
@@ -118,7 +123,7 @@ class TestMapButton:
         assert battery.unique_id.endswith("battery")
 
     @pytest.mark.unit
-    def test_unique_ids_distinct(self):
+    def test_unique_ids_distinct(self) -> None:
         """Event and battery unique_ids are distinct."""
         ctx = MockContext({"batteryPercentage": 85})
         result = map_button(ctx, MockDeviceInfo())
@@ -126,14 +131,14 @@ class TestMapButton:
         assert len(uids) == len(set(uids))
 
     @pytest.mark.unit
-    def test_entity_name_equals_device_name(self):
+    def test_entity_name_equals_device_name(self) -> None:
         """Primary entity name equals device name."""
         ctx = MockContext(name="Shortcut Woonkamer")
         result = map_button(ctx, MockDeviceInfo())
         assert result[0].name == "Shortcut Woonkamer"
 
     @pytest.mark.unit
-    def test_fewer_event_types_than_remote(self):
+    def test_fewer_event_types_than_remote(self) -> None:
         """Button has fewer event types than lightController (no _off variants)."""
         from app.mapping.domains.remote import map_light_controller
 
@@ -151,17 +156,17 @@ class TestMapButton:
 
 class TestButtonDeviceTypes:
     @pytest.mark.unit
-    def test_both_keys_registered(self):
+    def test_both_keys_registered(self) -> None:
         """DEVICE_TYPES has 'button' and 'shortcutController'."""
         assert "button" in DEVICE_TYPES
         assert "shortcutController" in DEVICE_TYPES
 
     @pytest.mark.unit
-    def test_both_keys_same_function(self):
+    def test_both_keys_same_function(self) -> None:
         """Both keys point to the same mapper function."""
         assert DEVICE_TYPES["button"] is DEVICE_TYPES["shortcutController"]
 
     @pytest.mark.unit
-    def test_only_two_keys(self):
+    def test_only_two_keys(self) -> None:
         """Only two keys registered in this module."""
         assert len(DEVICE_TYPES) == 2

@@ -15,31 +15,34 @@ Covers:
     - total_errors() — sums all error_* counters
 """
 
+from typing import Any
+
 import pytest
+from _pytest.logging import LogCaptureFixture
 
 from app.core.errors import DirigeraBridgeError, ErrorCode
-from app.core.metrics import MetricName
+from app.core.metrics import MetricName, MetricsStore
 
-
-# ── MetricName enum ───────────────────────────────────────────────────────────
+invalid_state: Any = "not_a_metric"
+invalid_state2: Any = 1.5
 
 
 class TestMetricName:
     @pytest.mark.unit
-    def test_all_values_are_strings(self):
+    def test_all_values_are_strings(self) -> None:
         """Every MetricName value is a non-empty string."""
         for metric in MetricName:
             assert isinstance(metric.value, str)
             assert len(metric.value) > 0
 
     @pytest.mark.unit
-    def test_all_values_are_unique(self):
+    def test_all_values_are_unique(self) -> None:
         """No two MetricNames share the same string value."""
         values = [m.value for m in MetricName]
         assert len(values) == len(set(values))
 
     @pytest.mark.unit
-    def test_all_values_are_lowercase(self):
+    def test_all_values_are_lowercase(self) -> None:
         """MetricName values are lowercase_snake_case for log readability."""
         for metric in MetricName:
             assert metric.value == metric.value.lower(), (
@@ -47,7 +50,7 @@ class TestMetricName:
             )
 
     @pytest.mark.unit
-    def test_required_categories_present(self):
+    def test_required_categories_present(self) -> None:
         """All metric categories are represented."""
         values = {m.value for m in MetricName}
         categories = ["ws_", "rest_", "mapping_", "mqtt_", "entity_", "error_"]
@@ -57,7 +60,7 @@ class TestMetricName:
             )
 
     @pytest.mark.unit
-    def test_key_metrics_exist(self):
+    def test_key_metrics_exist(self) -> None:
         """Specific metric names referenced in application code exist."""
         required = [
             MetricName.WS_MESSAGES_RECEIVED,
@@ -92,24 +95,24 @@ class TestMetricName:
 
 class TestMetricsStoreInitialState:
     @pytest.mark.unit
-    def test_all_counters_start_at_zero(self, metrics):
+    def test_all_counters_start_at_zero(self, metrics: MetricsStore) -> None:
         """Every counter starts at zero."""
         for metric in MetricName:
             assert metrics.get(metric) == 0, f"{metric.name} should start at 0"
 
     @pytest.mark.unit
-    def test_total_errors_starts_at_zero(self, metrics):
+    def test_total_errors_starts_at_zero(self, metrics: MetricsStore) -> None:
         """total_errors() returns 0 on a fresh store."""
         assert metrics.total_errors() == 0
 
     @pytest.mark.unit
-    def test_snapshot_empty_by_default(self, metrics):
+    def test_snapshot_empty_by_default(self, metrics: MetricsStore) -> None:
         """snapshot() returns an empty dict when all counters are zero."""
         snap = metrics.snapshot(include_zeros=False)
         assert snap == {}
 
     @pytest.mark.unit
-    def test_snapshot_full_when_include_zeros(self, metrics):
+    def test_snapshot_full_when_include_zeros(self, metrics: MetricsStore) -> None:
         """snapshot(include_zeros=True) includes all counters."""
         snap = metrics.snapshot(include_zeros=True)
         assert len(snap) == len(MetricName)
@@ -120,19 +123,19 @@ class TestMetricsStoreInitialState:
 
 class TestIncrement:
     @pytest.mark.unit
-    def test_increment_by_one_default(self, metrics):
+    def test_increment_by_one_default(self, metrics: MetricsStore) -> None:
         """increment() with no amount increments by 1."""
         metrics.increment(MetricName.WS_MESSAGES_RECEIVED)
         assert metrics.get(MetricName.WS_MESSAGES_RECEIVED) == 1
 
     @pytest.mark.unit
-    def test_increment_by_custom_amount(self, metrics):
+    def test_increment_by_custom_amount(self, metrics: MetricsStore) -> None:
         """increment() with amount increments by that amount."""
         metrics.increment(MetricName.MAPPING_ENTITIES_CREATED, amount=5)
         assert metrics.get(MetricName.MAPPING_ENTITIES_CREATED) == 5
 
     @pytest.mark.unit
-    def test_increment_is_cumulative(self, metrics):
+    def test_increment_is_cumulative(self, metrics: MetricsStore) -> None:
         """Multiple increments accumulate correctly."""
         metrics.increment(MetricName.REST_REQUESTS_SENT)
         metrics.increment(MetricName.REST_REQUESTS_SENT)
@@ -140,35 +143,35 @@ class TestIncrement:
         assert metrics.get(MetricName.REST_REQUESTS_SENT) == 5
 
     @pytest.mark.unit
-    def test_increment_invalid_metric_raises(self, metrics):
+    def test_increment_invalid_metric_raises(self, metrics: MetricsStore) -> None:
         """increment() raises for non-MetricName metric."""
         with pytest.raises(DirigeraBridgeError) as exc_info:
-            metrics.increment("not_a_metric")
+            metrics.increment(invalid_state)
         assert exc_info.value.code == ErrorCode.INTERNAL_INVALID_ARGUMENT
 
     @pytest.mark.unit
-    def test_increment_zero_amount_raises(self, metrics):
+    def test_increment_zero_amount_raises(self, metrics: MetricsStore) -> None:
         """increment() raises for amount=0."""
         with pytest.raises(DirigeraBridgeError) as exc_info:
             metrics.increment(MetricName.WS_MESSAGES_RECEIVED, amount=0)
         assert exc_info.value.code == ErrorCode.INTERNAL_INVALID_ARGUMENT
 
     @pytest.mark.unit
-    def test_increment_negative_amount_raises(self, metrics):
+    def test_increment_negative_amount_raises(self, metrics: MetricsStore) -> None:
         """increment() raises for negative amount."""
         with pytest.raises(DirigeraBridgeError) as exc_info:
             metrics.increment(MetricName.WS_MESSAGES_RECEIVED, amount=-1)
         assert exc_info.value.code == ErrorCode.INTERNAL_INVALID_ARGUMENT
 
     @pytest.mark.unit
-    def test_increment_float_amount_raises(self, metrics):
+    def test_increment_float_amount_raises(self, metrics: MetricsStore) -> None:
         """increment() raises for float amount."""
         with pytest.raises(DirigeraBridgeError) as exc_info:
-            metrics.increment(MetricName.WS_MESSAGES_RECEIVED, amount=1.5)
+            metrics.increment(MetricName.WS_MESSAGES_RECEIVED, amount=invalid_state2)
         assert exc_info.value.code == ErrorCode.INTERNAL_INVALID_ARGUMENT
 
     @pytest.mark.unit
-    def test_increment_different_counters_are_independent(self, metrics):
+    def test_increment_different_counters_are_independent(self, metrics: MetricsStore) -> None:
         """Incrementing one counter does not affect others."""
         metrics.increment(MetricName.WS_MESSAGES_RECEIVED, amount=10)
         assert metrics.get(MetricName.REST_REQUESTS_SENT) == 0
@@ -180,21 +183,21 @@ class TestIncrement:
 
 class TestGet:
     @pytest.mark.unit
-    def test_get_returns_current_value(self, metrics):
+    def test_get_returns_current_value(self, metrics: MetricsStore) -> None:
         """get() returns the current counter value."""
         metrics.increment(MetricName.ENTITY_REGISTERED, amount=3)
         assert metrics.get(MetricName.ENTITY_REGISTERED) == 3
 
     @pytest.mark.unit
-    def test_get_returns_zero_for_untouched_counter(self, metrics):
+    def test_get_returns_zero_for_untouched_counter(self, metrics: MetricsStore) -> None:
         """get() returns 0 for a counter that has never been incremented."""
         assert metrics.get(MetricName.MAPPING_UNKNOWN_DEVICE_TYPE) == 0
 
     @pytest.mark.unit
-    def test_get_invalid_metric_raises(self, metrics):
+    def test_get_invalid_metric_raises(self, metrics: MetricsStore) -> None:
         """get() raises for non-MetricName metric."""
         with pytest.raises(DirigeraBridgeError) as exc_info:
-            metrics.get("not_a_metric")
+            metrics.get(invalid_state)
         assert exc_info.value.code == ErrorCode.INTERNAL_INVALID_ARGUMENT
 
 
@@ -203,7 +206,7 @@ class TestGet:
 
 class TestReset:
     @pytest.mark.unit
-    def test_reset_single_counter(self, metrics):
+    def test_reset_single_counter(self, metrics: MetricsStore) -> None:
         """reset(metric) resets only that counter to zero."""
         metrics.increment(MetricName.WS_MESSAGES_RECEIVED, amount=5)
         metrics.increment(MetricName.REST_REQUESTS_SENT, amount=3)
@@ -214,7 +217,7 @@ class TestReset:
         assert metrics.get(MetricName.REST_REQUESTS_SENT) == 3
 
     @pytest.mark.unit
-    def test_reset_all_counters(self, metrics):
+    def test_reset_all_counters(self, metrics: MetricsStore) -> None:
         """reset() with no argument resets all counters to zero."""
         metrics.increment(MetricName.WS_MESSAGES_RECEIVED, amount=5)
         metrics.increment(MetricName.REST_REQUESTS_SENT, amount=3)
@@ -226,14 +229,14 @@ class TestReset:
             assert metrics.get(metric) == 0
 
     @pytest.mark.unit
-    def test_reset_invalid_metric_raises(self, metrics):
+    def test_reset_invalid_metric_raises(self, metrics: MetricsStore) -> None:
         """reset() raises for non-MetricName metric."""
         with pytest.raises(DirigeraBridgeError) as exc_info:
-            metrics.reset("not_a_metric")
+            metrics.reset(invalid_state)
         assert exc_info.value.code == ErrorCode.INTERNAL_INVALID_ARGUMENT
 
     @pytest.mark.unit
-    def test_reset_already_zero_is_noop(self, metrics):
+    def test_reset_already_zero_is_noop(self, metrics: MetricsStore) -> None:
         """reset() on a zero counter does not raise."""
         metrics.reset(MetricName.WS_MESSAGES_RECEIVED)
         assert metrics.get(MetricName.WS_MESSAGES_RECEIVED) == 0
@@ -244,7 +247,7 @@ class TestReset:
 
 class TestSnapshot:
     @pytest.mark.unit
-    def test_snapshot_excludes_zeros_by_default(self, metrics):
+    def test_snapshot_excludes_zeros_by_default(self, metrics: MetricsStore) -> None:
         """snapshot() excludes zero-value counters by default."""
         metrics.increment(MetricName.WS_MESSAGES_RECEIVED, amount=5)
         snap = metrics.snapshot()
@@ -252,7 +255,7 @@ class TestSnapshot:
         assert "rest_requests_sent" not in snap
 
     @pytest.mark.unit
-    def test_snapshot_includes_zeros_when_requested(self, metrics):
+    def test_snapshot_includes_zeros_when_requested(self, metrics: MetricsStore) -> None:
         """snapshot(include_zeros=True) includes all counters."""
         snap = metrics.snapshot(include_zeros=True)
         assert len(snap) == len(MetricName)
@@ -260,7 +263,7 @@ class TestSnapshot:
             assert value == 0
 
     @pytest.mark.unit
-    def test_snapshot_keys_are_sorted(self, metrics):
+    def test_snapshot_keys_are_sorted(self, metrics: MetricsStore) -> None:
         """snapshot() returns keys in sorted order."""
         metrics.increment(MetricName.WS_MESSAGES_RECEIVED)
         metrics.increment(MetricName.REST_REQUESTS_SENT)
@@ -271,7 +274,7 @@ class TestSnapshot:
         assert keys == sorted(keys)
 
     @pytest.mark.unit
-    def test_snapshot_is_a_copy(self, metrics):
+    def test_snapshot_is_a_copy(self, metrics: MetricsStore) -> None:
         """Mutating the snapshot dict does not affect the store."""
         metrics.increment(MetricName.WS_MESSAGES_RECEIVED, amount=5)
         snap = metrics.snapshot()
@@ -280,7 +283,7 @@ class TestSnapshot:
         assert metrics.get(MetricName.WS_MESSAGES_RECEIVED) == 5
 
     @pytest.mark.unit
-    def test_snapshot_values_are_correct(self, metrics):
+    def test_snapshot_values_are_correct(self, metrics: MetricsStore) -> None:
         """snapshot() values match the current counter values."""
         metrics.increment(MetricName.WS_MESSAGES_RECEIVED, amount=7)
         metrics.increment(MetricName.REST_REQUESTS_SENT, amount=3)
@@ -290,7 +293,7 @@ class TestSnapshot:
         assert snap["rest_requests_sent"] == 3
 
     @pytest.mark.unit
-    def test_snapshot_uses_string_keys(self, metrics):
+    def test_snapshot_uses_string_keys(self, metrics: MetricsStore) -> None:
         """snapshot() keys are string values, not MetricName enums."""
         metrics.increment(MetricName.WS_MESSAGES_RECEIVED)
         snap = metrics.snapshot()
@@ -303,7 +306,11 @@ class TestSnapshot:
 
 class TestLogSnapshot:
     @pytest.mark.unit
-    def test_log_snapshot_all_zeros(self, metrics, caplog):
+    def test_log_snapshot_all_zeros(
+        self,
+        metrics: MetricsStore,
+        caplog: LogCaptureFixture,
+    ) -> None:
         """log_snapshot() with all zeros logs a specific message."""
         import logging
 
@@ -312,7 +319,11 @@ class TestLogSnapshot:
         assert "all counters are zero" in caplog.text
 
     @pytest.mark.unit
-    def test_log_snapshot_with_values(self, metrics, caplog):
+    def test_log_snapshot_with_values(
+        self,
+        metrics: MetricsStore,
+        caplog: LogCaptureFixture,
+    ) -> None:
         """log_snapshot() with non-zero counters logs the values."""
         import logging
 
@@ -324,7 +335,7 @@ class TestLogSnapshot:
         assert "ws_messages_received=42" in caplog.text
 
     @pytest.mark.unit
-    def test_log_snapshot_does_not_raise(self, metrics):
+    def test_log_snapshot_does_not_raise(self, metrics: MetricsStore) -> None:
         """log_snapshot() never raises regardless of state."""
         metrics.increment(MetricName.ERROR_TOTAL, amount=100)
         metrics.log_snapshot()
@@ -336,7 +347,7 @@ class TestLogSnapshot:
 
 class TestTotalErrors:
     @pytest.mark.unit
-    def test_total_errors_sums_error_counters(self, metrics):
+    def test_total_errors_sums_error_counters(self, metrics: MetricsStore) -> None:
         """total_errors() sums all error_* counters."""
         metrics.increment(MetricName.ERROR_TOTAL, amount=2)
         metrics.increment(MetricName.ERROR_WS, amount=1)
@@ -347,7 +358,7 @@ class TestTotalErrors:
         assert metrics.total_errors() == 9
 
     @pytest.mark.unit
-    def test_total_errors_ignores_non_error_counters(self, metrics):
+    def test_total_errors_ignores_non_error_counters(self, metrics: MetricsStore) -> None:
         """total_errors() does not count non-error metrics."""
         metrics.increment(MetricName.WS_MESSAGES_RECEIVED, amount=100)
         metrics.increment(MetricName.MQTT_MESSAGES_PUBLISHED, amount=50)
@@ -355,12 +366,12 @@ class TestTotalErrors:
         assert metrics.total_errors() == 0
 
     @pytest.mark.unit
-    def test_total_errors_zero_initially(self, metrics):
+    def test_total_errors_zero_initially(self, metrics: MetricsStore) -> None:
         """total_errors() returns 0 on a fresh store."""
         assert metrics.total_errors() == 0
 
     @pytest.mark.unit
-    def test_total_errors_resets_with_reset_all(self, metrics):
+    def test_total_errors_resets_with_reset_all(self, metrics: MetricsStore) -> None:
         """total_errors() returns 0 after reset()."""
         metrics.increment(MetricName.ERROR_WS, amount=5)
         metrics.reset()

@@ -27,7 +27,6 @@ from .models import (
     DirigeraWebSocketEvent,
     DirigeraWebSocketEventData,
 )
-
 from .rest_client import DirigeraRestClient
 from .websocket_client import DirigeraWebSocketClient
 

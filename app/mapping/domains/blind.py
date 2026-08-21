@@ -65,14 +65,11 @@ Design notes:
 from __future__ import annotations
 
 import logging
-from typing import List
+
+from ha_mqtt_sdk import DeviceInfo, Entity, HADomain
 
 from ..device_registry import DeviceContext
-from ha_mqtt_sdk import HADomain
-from ha_mqtt_sdk import Entity
-from ha_mqtt_sdk import DeviceInfo
-
-from . import make_unique_id, make_battery_entity
+from . import make_battery_entity, make_unique_id
 
 __all__ = [
     "DEVICE_TYPES",
@@ -90,7 +87,7 @@ _ATTR_BLINDS_CURRENT_LEVEL = "blindsCurrentLevel"
 def map_blind(
     context: DeviceContext,
     device_info: DeviceInfo,
-) -> List[Entity]:
+) -> list[Entity]:
     """
     Map a Dirigera blind DeviceContext to HA entities.
 
@@ -105,7 +102,7 @@ def map_blind(
                                   grouping in HA.
 
     Returns:
-        List[Entity]: 1 entity (cover only) or 2 entities
+        list[Entity]: 1 entity (cover only) or 2 entities
                       (cover + battery).
     """
 
@@ -118,7 +115,7 @@ def map_blind(
         lid,
     )
 
-    entities: List[Entity] = [
+    entities: list[Entity] = [
         _make_cover(
             logical_id=lid,
             name=name,
@@ -130,7 +127,7 @@ def map_blind(
 
     # ── Secondary: battery sensor (battery-powered blinds only) ───────────
     battery_pct = context.attributes.get(_ATTR_BATTERY_PERCENTAGE)
-    if battery_pct is not None:
+    if isinstance(battery_pct, (int, float)):
         entities.append(
             make_battery_entity(
                 logical_id=lid,

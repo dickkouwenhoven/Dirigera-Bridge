@@ -19,33 +19,36 @@ Covers:
     - DeviceContext.is_grouped for single vs grouped devices
 """
 
+from typing import Any
+
 import pytest
 
+import app.mapping.device_registry as device_registry_module
 from app.core.errors import DirigeraBridgeError, ErrorCode
+from app.dirigera.models import DirigeraDevice
 from app.mapping.device_registry import (
     DeviceContext,
     build_device_contexts,
 )
 
-
 # ── Helpers — build lightweight mock device dicts ────────────────────────────
 
 
 def make_device(
-    logical_id,
-    device_type,
-    custom_name="",
-    model="Test Model",
-    manufacturer="IKEA of Sweden",
-    serial="ABC123",
-    firmware="1.0.0",
-    product_code="E0001",
-    is_reachable=True,
-    relation_id=None,
-    room_name=None,
-    attributes=None,
-    can_receive=None,
-):
+    logical_id: str,
+    device_type: str,
+    custom_name: str = "",
+    model: str = "Test Model",
+    manufacturer: str = "IKEA of Sweden",
+    serial: str = "ABC123",
+    firmware: str = "1.0.0",
+    product_code: str = "E0001",
+    is_reachable: bool = True,
+    relation_id: str | None = None,
+    room_name: str | None = None,
+    attributes: dict[str, Any] | None = None,
+    can_receive: list[str] | None = None,
+) -> dict[str, Any]:
     """Build a minimal raw Dirigera device dict for testing."""
     payload = {
         "id": logical_id,
@@ -81,7 +84,7 @@ def make_device(
     return payload
 
 
-def parse_devices(raw_list):
+def parse_devices(raw_list: Any) -> list[DirigeraDevice]:
     """Parse a list of raw dicts into DirigeraDevice objects."""
     from app.dirigera.models import DirigeraDevice
 
@@ -93,7 +96,7 @@ def parse_devices(raw_list):
 
 class TestDeviceContext:
     @pytest.mark.unit
-    def test_dataclass_fields_accessible(self):
+    def test_dataclass_fields_accessible(self) -> None:
         """All DeviceContext fields are accessible."""
         ctx = DeviceContext(
             logical_id="light_abc_1",
@@ -120,7 +123,7 @@ class TestDeviceContext:
         assert ctx.is_grouped is False
 
     @pytest.mark.unit
-    def test_is_grouped_defaults_to_false(self):
+    def test_is_grouped_defaults_to_false(self) -> None:
         """is_grouped defaults to False."""
         ctx = DeviceContext(
             logical_id="x_1",
@@ -140,7 +143,7 @@ class TestDeviceContext:
         assert ctx.is_grouped is False
 
     @pytest.mark.unit
-    def test_repr_contains_key_fields(self):
+    def test_repr_contains_key_fields(self) -> None:
         """repr includes logical_id, device_type and device_name."""
         ctx = DeviceContext(
             logical_id="light_1",
@@ -168,21 +171,21 @@ class TestDeviceContext:
 
 class TestBuildDeviceContextsBasic:
     @pytest.mark.unit
-    def test_empty_list_returns_two_empty_lists(self):
+    def test_empty_list_returns_two_empty_lists(self) -> None:
         """Empty device list returns ([], [])."""
         regular, gateway = build_device_contexts([])
         assert regular == []
         assert gateway == []
 
     @pytest.mark.unit
-    def test_invalid_input_raises(self):
+    def test_invalid_input_raises(self) -> None:
         """Non-list input raises INTERNAL_INVALID_ARGUMENT."""
         with pytest.raises(DirigeraBridgeError) as exc_info:
-            build_device_contexts("not_a_list")
+            build_device_contexts("not_a_list")  # type: ignore[arg-type]
         assert exc_info.value.code == ErrorCode.INTERNAL_INVALID_ARGUMENT
 
     @pytest.mark.unit
-    def test_returns_two_lists(self, light_raw):
+    def test_returns_two_lists(self, light_raw: dict[str, Any]) -> None:
         """Return value is a tuple of two lists."""
         devices = parse_devices([light_raw])
         result = build_device_contexts(devices)
@@ -198,7 +201,7 @@ class TestBuildDeviceContextsBasic:
 
 class TestBuildDeviceContextsSingleDevice:
     @pytest.mark.unit
-    def test_single_light_produces_one_context(self, light_raw):
+    def test_single_light_produces_one_context(self, light_raw: dict[str, Any]) -> None:
         """Single light device produces one DeviceContext."""
         devices = parse_devices([light_raw])
         regular, gateway = build_device_contexts(devices)
@@ -206,7 +209,7 @@ class TestBuildDeviceContextsSingleDevice:
         assert len(gateway) == 0
 
     @pytest.mark.unit
-    def test_light_context_fields(self, light_raw):
+    def test_light_context_fields(self, light_raw: dict[str, Any]) -> None:
         """DeviceContext fields match the light payload."""
         devices = parse_devices([light_raw])
         regular, _ = build_device_contexts(devices)
@@ -221,7 +224,7 @@ class TestBuildDeviceContextsSingleDevice:
         assert ctx.is_grouped is False
 
     @pytest.mark.unit
-    def test_light_physical_id_equals_logical_id(self, light_raw):
+    def test_light_physical_id_equals_logical_id(self, light_raw: dict[str, Any]) -> None:
         """Single device — relation_id equals logical_id."""
         devices = parse_devices([light_raw])
         regular, _ = build_device_contexts(devices)
@@ -229,7 +232,7 @@ class TestBuildDeviceContextsSingleDevice:
         assert ctx.relation_id == ctx.logical_id
 
     @pytest.mark.unit
-    def test_light_capabilities_populated(self, light_raw):
+    def test_light_capabilities_populated(self, light_raw: dict[str, Any]) -> None:
         """capabilities list is populated from canReceive."""
         devices = parse_devices([light_raw])
         regular, _ = build_device_contexts(devices)
@@ -238,7 +241,7 @@ class TestBuildDeviceContextsSingleDevice:
         assert "lightLevel" in ctx.capabilities
 
     @pytest.mark.unit
-    def test_light_attributes_populated(self, light_raw):
+    def test_light_attributes_populated(self, light_raw: dict[str, Any]) -> None:
         """attributes dict contains raw attribute values."""
         devices = parse_devices([light_raw])
         regular, _ = build_device_contexts(devices)
@@ -247,7 +250,7 @@ class TestBuildDeviceContextsSingleDevice:
         assert ctx.attributes["isOn"] is True
 
     @pytest.mark.unit
-    def test_outlet_produces_one_context(self, outlet_raw):
+    def test_outlet_produces_one_context(self, outlet_raw: dict[str, Any]) -> None:
         """Single outlet produces one DeviceContext."""
         devices = parse_devices([outlet_raw])
         regular, _ = build_device_contexts(devices)
@@ -261,8 +264,10 @@ class TestBuildDeviceContextsSingleDevice:
 class TestBuildDeviceContextsVallhorn:
     @pytest.mark.unit
     def test_vallhorn_produces_two_contexts(
-        self, vallhorn_motion_raw, vallhorn_light_raw
-    ):
+        self,
+        vallhorn_motion_raw: dict[str, Any],
+        vallhorn_light_raw: dict[str, Any],
+    ) -> None:
         """VALLHORN pair produces two DeviceContext objects."""
         devices = parse_devices([vallhorn_motion_raw, vallhorn_light_raw])
         regular, gateway = build_device_contexts(devices)
@@ -271,8 +276,10 @@ class TestBuildDeviceContextsVallhorn:
 
     @pytest.mark.unit
     def test_both_siblings_share_relation_id(
-        self, vallhorn_motion_raw, vallhorn_light_raw
-    ):
+        self,
+        vallhorn_motion_raw: dict[str, Any],
+        vallhorn_light_raw: dict[str, Any],
+    ) -> None:
         """Both VALLHORN siblings have the same relation_id."""
         devices = parse_devices([vallhorn_motion_raw, vallhorn_light_raw])
         regular, _ = build_device_contexts(devices)
@@ -283,8 +290,10 @@ class TestBuildDeviceContextsVallhorn:
 
     @pytest.mark.unit
     def test_both_siblings_marked_as_grouped(
-        self, vallhorn_motion_raw, vallhorn_light_raw
-    ):
+        self,
+        vallhorn_motion_raw: dict[str, Any],
+        vallhorn_light_raw: dict[str, Any],
+    ) -> None:
         """Both VALLHORN siblings have is_grouped=True."""
         devices = parse_devices([vallhorn_motion_raw, vallhorn_light_raw])
         regular, _ = build_device_contexts(devices)
@@ -294,8 +303,10 @@ class TestBuildDeviceContextsVallhorn:
 
     @pytest.mark.unit
     def test_light_sensor_inherits_device_name(
-        self, vallhorn_motion_raw, vallhorn_light_raw
-    ):
+        self,
+        vallhorn_motion_raw: dict[str, Any],
+        vallhorn_light_raw: dict[str, Any],
+    ) -> None:
         """lightSensor sibling inherits device_name from motionSensor."""
         devices = parse_devices([vallhorn_motion_raw, vallhorn_light_raw])
         regular, _ = build_device_contexts(devices)
@@ -306,8 +317,10 @@ class TestBuildDeviceContextsVallhorn:
 
     @pytest.mark.unit
     def test_light_sensor_inherits_room_name(
-        self, vallhorn_motion_raw, vallhorn_light_raw
-    ):
+        self,
+        vallhorn_motion_raw: dict[str, Any],
+        vallhorn_light_raw: dict[str, Any],
+    ) -> None:
         """lightSensor sibling inherits room_name from motionSensor."""
         devices = parse_devices([vallhorn_motion_raw, vallhorn_light_raw])
         regular, _ = build_device_contexts(devices)
@@ -317,8 +330,10 @@ class TestBuildDeviceContextsVallhorn:
 
     @pytest.mark.unit
     def test_each_sibling_has_own_logical_id(
-        self, vallhorn_motion_raw, vallhorn_light_raw
-    ):
+        self,
+        vallhorn_motion_raw: dict[str, Any],
+        vallhorn_light_raw: dict[str, Any],
+    ) -> None:
         """Each sibling has its own distinct logical_id."""
         devices = parse_devices([vallhorn_motion_raw, vallhorn_light_raw])
         regular, _ = build_device_contexts(devices)
@@ -328,8 +343,10 @@ class TestBuildDeviceContextsVallhorn:
 
     @pytest.mark.unit
     def test_each_sibling_has_own_device_type(
-        self, vallhorn_motion_raw, vallhorn_light_raw
-    ):
+        self,
+        vallhorn_motion_raw: dict[str, Any],
+        vallhorn_light_raw: dict[str, Any],
+    ) -> None:
         """Each sibling has its own device_type."""
         devices = parse_devices([vallhorn_motion_raw, vallhorn_light_raw])
         regular, _ = build_device_contexts(devices)
@@ -343,7 +360,7 @@ class TestBuildDeviceContextsVallhorn:
 
 class TestBuildDeviceContextsGateway:
     @pytest.mark.unit
-    def test_gateway_goes_to_gateway_list(self, gateway_raw):
+    def test_gateway_goes_to_gateway_list(self, gateway_raw: dict[str, Any]) -> None:
         """Gateway device goes to gateway_contexts, not regular_contexts."""
         devices = parse_devices([gateway_raw])
         regular, gateway = build_device_contexts(devices)
@@ -352,7 +369,7 @@ class TestBuildDeviceContextsGateway:
         assert len(gateway) == 1
 
     @pytest.mark.unit
-    def test_gateway_context_fields(self, gateway_raw):
+    def test_gateway_context_fields(self, gateway_raw: dict[str, Any]) -> None:
         """Gateway DeviceContext has correct device_type."""
         devices = parse_devices([gateway_raw])
         _, gateway = build_device_contexts(devices)
@@ -362,7 +379,11 @@ class TestBuildDeviceContextsGateway:
         assert ctx.device_name == "Ikea Hub"
 
     @pytest.mark.unit
-    def test_mixed_list_routes_correctly(self, light_raw, gateway_raw):
+    def test_mixed_list_routes_correctly(
+        self,
+        light_raw: dict[str, Any],
+        gateway_raw: dict[str, Any],
+    ) -> None:
         """Mixed list routes light to regular and gateway to gateway."""
         devices = parse_devices([light_raw, gateway_raw])
         regular, gateway = build_device_contexts(devices)
@@ -378,19 +399,15 @@ class TestBuildDeviceContextsGateway:
 
 class TestBuildDeviceContextsDeviceNameElection:
     @pytest.mark.unit
-    def test_custom_name_used_when_present(self):
+    def test_custom_name_used_when_present(self) -> None:
         """customName is used as device_name when non-empty."""
-        raw = [
-            make_device(
-                "dev_1", "light", custom_name="My Light", room_name="Living Room"
-            )
-        ]
+        raw = [make_device("dev_1", "light", custom_name="My Light", room_name="Living Room")]
         devices = parse_devices(raw)
         regular, _ = build_device_contexts(devices)
         assert regular[0].device_name == "My Light"
 
     @pytest.mark.unit
-    def test_model_used_when_custom_name_empty(self):
+    def test_model_used_when_custom_name_empty(self) -> None:
         """model is used when customName is empty."""
         raw = [make_device("dev_1", "light", custom_name="", model="TRADFRI bulb E27")]
         devices = parse_devices(raw)
@@ -398,7 +415,7 @@ class TestBuildDeviceContextsDeviceNameElection:
         assert regular[0].device_name == "TRADFRI bulb E27"
 
     @pytest.mark.unit
-    def test_device_type_used_when_both_empty(self):
+    def test_device_type_used_when_both_empty(self) -> None:
         """deviceType is used when both customName and model are empty."""
         raw = [make_device("dev_1", "motionSensor", custom_name="", model="")]
         devices = parse_devices(raw)
@@ -406,7 +423,7 @@ class TestBuildDeviceContextsDeviceNameElection:
         assert regular[0].device_name == "motionSensor"
 
     @pytest.mark.unit
-    def test_primary_with_name_elected_over_nameless(self):
+    def test_primary_with_name_elected_over_nameless(self) -> None:
         """Sibling with non-empty customName is elected as primary."""
         relation = "shared_relation"
         raw = [
@@ -437,21 +454,21 @@ class TestBuildDeviceContextsDeviceNameElection:
 
 class TestBuildDeviceContextsOptionalFields:
     @pytest.mark.unit
-    def test_firmware_version_populated(self, light_raw):
+    def test_firmware_version_populated(self, light_raw: dict[str, Any]) -> None:
         """firmware_version is populated in DeviceContext."""
         devices = parse_devices([light_raw])
         regular, _ = build_device_contexts(devices)
         assert regular[0].firmware_version == "1.0.44"
 
     @pytest.mark.unit
-    def test_product_code_populated(self, outlet_raw):
+    def test_product_code_populated(self, outlet_raw: dict[str, Any]) -> None:
         """product_code is populated in DeviceContext."""
         devices = parse_devices([outlet_raw])
         regular, _ = build_device_contexts(devices)
         assert regular[0].product_code == "E2206"
 
     @pytest.mark.unit
-    def test_serial_number_populated(self, light_raw):
+    def test_serial_number_populated(self, light_raw: dict[str, Any]) -> None:
         """serial_number is populated in DeviceContext."""
         devices = parse_devices([light_raw])
         regular, _ = build_device_contexts(devices)
@@ -463,14 +480,24 @@ class TestBuildDeviceContextsOptionalFields:
 
 class TestBuildDeviceContextsMultipleDevices:
     @pytest.mark.unit
-    def test_multiple_independent_devices(self, light_raw, outlet_raw, vindstyrka_raw):
+    def test_multiple_independent_devices(
+        self,
+        light_raw: dict[str, Any],
+        outlet_raw: dict[str, Any],
+        vindstyrka_raw: dict[str, Any],
+    ) -> None:
         """Three independent devices produce three contexts."""
         devices = parse_devices([light_raw, outlet_raw, vindstyrka_raw])
         regular, _ = build_device_contexts(devices)
         assert len(regular) == 3
 
     @pytest.mark.unit
-    def test_all_device_types_present(self, light_raw, outlet_raw, vindstyrka_raw):
+    def test_all_device_types_present(
+        self,
+        light_raw: dict[str, Any],
+        outlet_raw: dict[str, Any],
+        vindstyrka_raw: dict[str, Any],
+    ) -> None:
         """All device types are represented in the contexts."""
         devices = parse_devices([light_raw, outlet_raw, vindstyrka_raw])
         regular, _ = build_device_contexts(devices)
@@ -480,8 +507,11 @@ class TestBuildDeviceContextsMultipleDevices:
 
     @pytest.mark.unit
     def test_mixed_grouped_and_ungrouped(
-        self, vallhorn_motion_raw, vallhorn_light_raw, light_raw
-    ):
+        self,
+        vallhorn_motion_raw: dict[str, Any],
+        vallhorn_light_raw: dict[str, Any],
+        light_raw: dict[str, Any],
+    ) -> None:
         """Mix of grouped (VALLHORN) and ungrouped (light) devices."""
         devices = parse_devices([vallhorn_motion_raw, vallhorn_light_raw, light_raw])
         regular, _ = build_device_contexts(devices)
@@ -492,3 +522,31 @@ class TestBuildDeviceContextsMultipleDevices:
 
         assert len(grouped) == 2  # VALLHORN pair
         assert len(ungrouped) == 1  # light
+
+
+class TestBuildDeviceContextsErrorHandling:
+    @pytest.mark.unit
+    def test_one_bad_device_does_not_prevent_others(
+        self,
+        light_raw: dict[str, Any],
+        outlet_raw: dict[str, Any],
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """A device that fails to build a DeviceContext is logged and
+        skipped (error_count incremented), without preventing other
+        devices in the same batch from loading."""
+        real_device_context = device_registry_module.DeviceContext
+
+        def flaky_device_context(*args: Any, **kwargs: Any) -> DeviceContext:
+            if kwargs.get("logical_id") == light_raw["id"]:
+                raise RuntimeError("simulated build failure")
+            return real_device_context(*args, **kwargs)
+
+        monkeypatch.setattr(device_registry_module, "DeviceContext", flaky_device_context)
+
+        devices = parse_devices([light_raw, outlet_raw])
+        regular, gateway = build_device_contexts(devices)
+
+        assert len(regular) == 1
+        assert regular[0].device_type == "outlet"
+        assert gateway == []

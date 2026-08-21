@@ -45,10 +45,10 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from _collections_abc import Awaitable, Callable
 from dataclasses import dataclass
-from datetime import datetime, timezone
-from enum import Enum, unique
-from typing import Awaitable, Callable, Dict, List, Optional, Set
+from datetime import UTC, datetime
+from enum import StrEnum, unique
 
 from .errors import DirigeraBridgeError, ErrorCode
 
@@ -68,7 +68,7 @@ TransitionCallback = Callable[["StateTransition"], Awaitable[None]]
 
 
 @unique
-class LifecycleState(str, Enum):
+class LifecycleState(StrEnum):
     """
     All valid states of the bridge service.
 
@@ -113,7 +113,7 @@ class LifecycleState(str, Enum):
 
 # Defines which states each state may transition to.
 # Any transition not in this table is illegal and raises an error.
-_VALID_TRANSITIONS: Dict[LifecycleState, Set[LifecycleState]] = {
+_VALID_TRANSITIONS: dict[LifecycleState, set[LifecycleState]] = {
     LifecycleState.CREATED: {
         LifecycleState.STARTING,
         LifecycleState.STOPPING,
@@ -194,15 +194,14 @@ class ServiceLifecycle:
         if not isinstance(initial_state, LifecycleState):
             raise DirigeraBridgeError(
                 ErrorCode.INTERNAL_INVALID_ARGUMENT,
-                f"initial_state must be LifecycleState, "
-                f"got {type(initial_state).__name__}",
+                f"initial_state must be LifecycleState, got {type(initial_state).__name__}",
             )
 
         self._state: LifecycleState = initial_state
-        self._started_at: Optional[datetime] = None
-        self._last_transition: Optional[StateTransition] = None
-        self._history: List[StateTransition] = []
-        self._callbacks: List[TransitionCallback] = []
+        self._started_at: datetime | None = None
+        self._last_transition: StateTransition | None = None
+        self._history: list[StateTransition] = []
+        self._callbacks: list[TransitionCallback] = []
 
         logger.info(
             "ServiceLifecycle initialised in state '%s'",
@@ -222,7 +221,7 @@ class ServiceLifecycle:
         return self._state
 
     @property
-    def last_transition(self) -> Optional[StateTransition]:
+    def last_transition(self) -> StateTransition | None:
         """
         The most recent state transition, or None if no transition
         has occurred yet.
@@ -233,7 +232,7 @@ class ServiceLifecycle:
         return self._last_transition
 
     @property
-    def started_at(self) -> Optional[datetime]:
+    def started_at(self) -> datetime | None:
         """
         UTC datetime when the service entered RUNNING state for the
         first time, or None if it has not reached RUNNING yet.
@@ -244,14 +243,14 @@ class ServiceLifecycle:
         return self._started_at
 
     @property
-    def history(self) -> List[StateTransition]:
+    def history(self) -> list[StateTransition]:
         """
         Ordered list of all state transitions since creation.
 
         Returns a copy so callers cannot mutate internal history.
 
         Returns:
-            List[StateTransition]
+            list[StateTransition]
         """
         return list(self._history)
 
@@ -330,8 +329,7 @@ class ServiceLifecycle:
         if not isinstance(to_state, LifecycleState):
             raise DirigeraBridgeError(
                 ErrorCode.INTERNAL_INVALID_ARGUMENT,
-                f"can_transition: to_state must be LifecycleState, "
-                f"got {type(to_state).__name__}",
+                f"can_transition: to_state must be LifecycleState, got {type(to_state).__name__}",
             )
 
         return to_state in _VALID_TRANSITIONS.get(self._state, set())
@@ -394,7 +392,7 @@ class ServiceLifecycle:
             from_state=self._state,
             to_state=to_state,
             reason=reason,
-            timestamp=datetime.now(tz=timezone.utc),
+            timestamp=datetime.now(tz=UTC),
         )
 
         from_state = self._state
@@ -497,11 +495,10 @@ class ServiceLifecycle:
             return_exceptions=True,
         )
 
-        for cb, result in zip(self._callbacks, results):
+        for cb, result in zip(self._callbacks, results, strict=False):
             if isinstance(result, Exception):
                 logger.error(
-                    "Lifecycle callback '%s' raised an error during "
-                    "transition %s → %s: %s",
+                    "Lifecycle callback '%s' raised an error during transition %s → %s: %s",
                     getattr(cb, "__name__", repr(cb)),
                     transition.from_state.value,
                     transition.to_state.value,

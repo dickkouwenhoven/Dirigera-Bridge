@@ -60,10 +60,9 @@ Design notes:
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any
 
-from pydantic import BaseModel, Field, model_validator
-from pydantic import ConfigDict
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 __all__ = [
     "DirigeraAttributes",
@@ -129,8 +128,8 @@ class DirigeraCapabilities(BaseModel):
 
     model_config = _MODEL_CONFIG
 
-    can_send: List[str] = Field(default_factory=list, alias="canSend")
-    can_receive: List[str] = Field(default_factory=list, alias="canReceive")
+    can_send: list[str] = Field(default_factory=list, alias="canSend")
+    can_receive: list[str] = Field(default_factory=list, alias="canReceive")
 
 
 class DirigeraAttributes(BaseModel):
@@ -173,10 +172,10 @@ class DirigeraAttributes(BaseModel):
     firmware_version: str = Field(default="", alias="firmwareVersion")
     hardware_version: str = Field(default="", alias="hardwareVersion")
     serial_number: str = Field(default="", alias="serialNumber")
-    product_code: Optional[str] = Field(default=None, alias="productCode")
-    is_on: Optional[bool] = Field(default=None, alias="isOn")
-    battery_percentage: Optional[int] = Field(default=None, alias="batteryPercentage")
-    ota_status: Optional[str] = Field(default=None, alias="otaStatus")
+    product_code: str | None = Field(default=None, alias="productCode")
+    is_on: bool | None = Field(default=None, alias="isOn")
+    battery_percentage: int | None = Field(default=None, alias="batteryPercentage")
+    ota_status: str | None = Field(default=None, alias="otaStatus")
 
     def get_extra(self, key: str, default: Any = None) -> Any:
         """
@@ -195,11 +194,9 @@ class DirigeraAttributes(BaseModel):
         Any: Attribute value or default.
         """
 
-        if self.model_extra:
-            return self.model_extra.get(key, default)
-        return default
+        return self.model_extra.get(key, default) if self.model_extra is not None else default
 
-    def all_attributes(self) -> Dict[str, Any]:
+    def all_attributes(self) -> dict[str, Any]:
         """
         Return a merged dict of all attributes — both typed fields
         and any extra attributes preserved by extra='allow'.
@@ -209,11 +206,11 @@ class DirigeraAttributes(BaseModel):
         an alias.
 
         Returns:
-        Dict[str, Any]: Complete attribute mapping.
+        dict[str, Any]: Complete attribute mapping.
         """
 
         # Start with extra (untyped) attributes
-        result: Dict[str, Any] = dict(self.model_extra or {})
+        result: dict[str, Any] = dict(self.model_extra or {})
 
         # Overlay typed fields using their alias (camelCase) names
         # so the result is consistent with the raw JSON keys
@@ -292,22 +289,22 @@ class DirigeraDevice(BaseModel):
     model_config = _MODEL_CONFIG
 
     id: str
-    relation_id: Optional[str] = Field(default=None, alias="relationId")
+    relation_id: str | None = Field(default=None, alias="relationId")
     type: str = Field(default="")
     device_type: str = Field(default="", alias="deviceType")
     is_reachable: bool = Field(default=False, alias="isReachable")
     attributes: DirigeraAttributes
     capabilities: DirigeraCapabilities = Field(default_factory=DirigeraCapabilities)
-    room: Optional[DirigeraRoom] = Field(default=None)
+    room: DirigeraRoom | None = Field(default=None)
     is_hidden: bool = Field(default=False, alias="isHidden")
-    created_at: Optional[str] = Field(default=None, alias="createdAt")
-    last_seen: Optional[str] = Field(default=None, alias="lastSeen")
+    created_at: str | None = Field(default=None, alias="createdAt")
+    last_seen: str | None = Field(default=None, alias="lastSeen")
 
     # Populated by model_validator — not present in raw JSON
-    raw_attributes: Dict[str, Any] = Field(default_factory=dict, exclude=True)
+    raw_attributes: dict[str, Any] = Field(default_factory=dict, exclude=True)
 
     @model_validator(mode="after")
-    def _populate_raw_attributes(self) -> "DirigeraDevice":
+    def _populate_raw_attributes(self) -> DirigeraDevice:
         """
         Populate raw_attributes from the parsed attributes model.
 
@@ -372,7 +369,7 @@ class DirigeraDevice(BaseModel):
         return self.attributes.custom_name
 
     @property
-    def room_name(self) -> Optional[str]:
+    def room_name(self) -> str | None:
         """
         Return the room name if a room is assigned, else None.
 
@@ -419,12 +416,12 @@ class DirigeraEventAttributes(BaseModel):
         frozen=False,
     )
 
-    def get_changed(self) -> Dict[str, Any]:
+    def get_changed(self) -> dict[str, Any]:
         """
         Return all changed attributes from this event as a plain dict.
 
         Returns:
-            Dict[str, Any]: Changed attribute name → new value mapping.
+            dict[str, Any]: Changed attribute name → new value mapping.
         """
 
         return dict(self.model_extra or {})
@@ -453,7 +450,7 @@ class DirigeraWebSocketEvent(BaseModel):
     model_config = _MODEL_CONFIG
 
     type: str = Field(default="")
-    data: Optional["DirigeraWebSocketEventData"] = Field(default=None)
+    data: DirigeraWebSocketEventData | None = Field(default=None)
 
     @property
     def is_state_change(self) -> bool:
@@ -499,11 +496,11 @@ class DirigeraWebSocketEventData(BaseModel):
     model_config = _MODEL_CONFIG
 
     id: str
-    relation_id: Optional[str] = Field(default=None, alias="relationId")
+    relation_id: str | None = Field(default=None, alias="relationId")
     type: str = Field(default="")
     device_type: str = Field(default="", alias="deviceType")
     attributes: DirigeraEventAttributes = Field(default_factory=DirigeraEventAttributes)
-    is_reachable: Optional[bool] = Field(
+    is_reachable: bool | None = Field(
         default=None,
         alias="isReachable",
     )
@@ -522,12 +519,12 @@ class DirigeraWebSocketEventData(BaseModel):
         return self.relation_id if self.relation_id is not None else self.id
 
     @property
-    def changed_attributes(self) -> Dict[str, Any]:
+    def changed_attributes(self) -> dict[str, Any]:
         """
         Return the changed attribute(s) from this event as a plain dict.
 
         Returns:
-            Dict[str, Any]: Changed attribute name → new value.
+            dict[str, Any]: Changed attribute name → new value.
         """
 
         changed = self.attributes.get_changed()

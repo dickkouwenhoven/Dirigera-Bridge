@@ -15,12 +15,16 @@ Covers:
     - Real Remote Control N2 fixture
 """
 
-import pytest
+from typing import Any
 
+import pytest
+from ha_mqtt_sdk import DeviceInfo
+
+from app.mapping import DeviceContext
 from app.mapping.domains.remote import DEVICE_TYPES, map_light_controller
 
 
-class MockDeviceInfo(dict):
+class MockDeviceInfo(DeviceInfo):
     """
     Minimal DeviceInfo double for domain-mapper unit tests.
 
@@ -34,16 +38,17 @@ class MockDeviceInfo(dict):
     pass
 
 
-class MockAttrs:
-    def __init__(self, d):
+class MockAttrs(dict[str, Any]):
+    def __init__(self, d: Any):
+        super().__init__()
         self._d = d
 
-    def get(self, k, default=None):
+    def get(self, k: Any, default: Any = None) -> Any:
         return self._d.get(k, default)
 
 
-class MockContext:
-    def __init__(self, attrs, name="Remote", lid="remote_abc_1"):
+class MockContext(DeviceContext):
+    def __init__(self, attrs: Any, name: str = "Remote", lid: str = "remote_abc_1"):
         self.logical_id = lid
         self.device_name = name
         self.attributes = MockAttrs(attrs)
@@ -51,28 +56,28 @@ class MockContext:
 
 class TestMapLightController:
     @pytest.mark.unit
-    def test_without_battery_produces_one_entity(self):
+    def test_without_battery_produces_one_entity(self) -> None:
         """No battery → 1 event entity."""
         ctx = MockContext({"isOn": False, "lightLevel": 1})
         result = map_light_controller(ctx, MockDeviceInfo())
         assert len(result) == 1
 
     @pytest.mark.unit
-    def test_with_battery_produces_two_entities(self):
+    def test_with_battery_produces_two_entities(self) -> None:
         """With battery → 2 entities."""
         ctx = MockContext({"isOn": False, "batteryPercentage": 90})
         result = map_light_controller(ctx, MockDeviceInfo())
         assert len(result) == 2
 
     @pytest.mark.unit
-    def test_primary_entity_is_event_domain(self):
+    def test_primary_entity_is_event_domain(self) -> None:
         """Primary entity domain is 'event'."""
         ctx = MockContext({})
         result = map_light_controller(ctx, MockDeviceInfo())
         assert result[0].domain.value == "event"
 
     @pytest.mark.unit
-    def test_event_types_present(self):
+    def test_event_types_present(self) -> None:
         """Entity has event_types list."""
         ctx = MockContext({})
         result = map_light_controller(ctx, MockDeviceInfo())
@@ -80,21 +85,21 @@ class TestMapLightController:
         assert len(result[0].extra["event_types"]) > 0
 
     @pytest.mark.unit
-    def test_event_types_contain_short_release(self):
+    def test_event_types_contain_short_release(self) -> None:
         """event_types includes shortRelease."""
         ctx = MockContext({})
         result = map_light_controller(ctx, MockDeviceInfo())
         assert "shortRelease" in result[0].extra["event_types"]
 
     @pytest.mark.unit
-    def test_event_types_contain_long_press(self):
+    def test_event_types_contain_long_press(self) -> None:
         """event_types includes longPress."""
         ctx = MockContext({})
         result = map_light_controller(ctx, MockDeviceInfo())
         assert "longPress" in result[0].extra["event_types"]
 
     @pytest.mark.unit
-    def test_event_types_contain_off_variants(self):
+    def test_event_types_contain_off_variants(self) -> None:
         """event_types includes _off variants for N2 remote."""
         ctx = MockContext({})
         result = map_light_controller(ctx, MockDeviceInfo())
@@ -102,7 +107,7 @@ class TestMapLightController:
         assert any("_off" in et for et in event_types)
 
     @pytest.mark.unit
-    def test_battery_entity_config(self):
+    def test_battery_entity_config(self) -> None:
         """Battery entity has correct config."""
         ctx = MockContext({"batteryPercentage": 90}, lid="remote_1")
         result = map_light_controller(ctx, MockDeviceInfo())
@@ -113,15 +118,15 @@ class TestMapLightController:
         assert battery.unique_id.endswith("battery")
 
     @pytest.mark.unit
-    def test_internal_fields_not_exposed(self):
+    def test_internal_fields_not_exposed(self) -> None:
         """isOn and lightLevel are not separate entities."""
         ctx = MockContext({"isOn": False, "lightLevel": 1})
         result = map_light_controller(ctx, MockDeviceInfo())
-        names = [e.name for e in result]
+        names = [e.name for e in result if isinstance(e.name, str)]
         assert not any("isOn" in n or "lightLevel" in n for n in names)
 
     @pytest.mark.unit
-    def test_unique_ids_distinct(self):
+    def test_unique_ids_distinct(self) -> None:
         """Event and battery unique_ids are distinct."""
         ctx = MockContext({"batteryPercentage": 90})
         result = map_light_controller(ctx, MockDeviceInfo())
@@ -129,7 +134,7 @@ class TestMapLightController:
         assert len(uids) == len(set(uids))
 
     @pytest.mark.unit
-    def test_real_remote_n2_fixture(self, remote_raw):
+    def test_real_remote_n2_fixture(self, remote_raw: dict[str, Any]) -> None:
         """Real Remote Control N2 fixture maps correctly."""
         from app.dirigera.models import DirigeraDevice
         from app.mapping.device_registry import build_device_contexts
@@ -146,11 +151,11 @@ class TestMapLightController:
 
 class TestRemoteDeviceTypes:
     @pytest.mark.unit
-    def test_light_controller_key_registered(self):
+    def test_light_controller_key_registered(self) -> None:
         """DEVICE_TYPES key is 'lightController' not 'remote'."""
         assert "lightController" in DEVICE_TYPES
         assert "remote" not in DEVICE_TYPES
 
     @pytest.mark.unit
-    def test_only_one_key(self):
+    def test_only_one_key(self) -> None:
         assert len(DEVICE_TYPES) == 1

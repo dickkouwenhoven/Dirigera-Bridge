@@ -1,3 +1,4 @@
+# noinspection GrazieInspection
 """
 light.py
 
@@ -78,13 +79,11 @@ Design notes:
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List
+from typing import Any
+
+from ha_mqtt_sdk import DeviceInfo, Entity, HADomain
 
 from ..device_registry import DeviceContext
-from ha_mqtt_sdk import HADomain
-from ha_mqtt_sdk import Entity
-from ha_mqtt_sdk import DeviceInfo
-
 from . import make_unique_id
 
 __all__ = [
@@ -110,9 +109,9 @@ _ATTR_IS_ON = "isOn"
 
 
 def map_light(
-    context: DeviceContext,  # type: ignore[name-defined]
+    context: DeviceContext,
     device_info: DeviceInfo,
-) -> List[Entity]:
+) -> list[Entity]:
     """
     Map a Dirigera light DeviceContext to a list containing one HA
     light entity.
@@ -127,7 +126,7 @@ def map_light(
                                   grouping in HA.
 
     Returns:
-        List[Entity]: A single-element list containing the light entity.
+        list[Entity]: A single-element list containing the light entity.
     """
 
     lid = context.logical_id
@@ -146,9 +145,7 @@ def map_light(
     can_receive = set(capabilities) if capabilities else set()
     has_dimming = _CAP_LIGHT_LEVEL in can_receive
     has_color_temp = _CAP_COLOR_TEMP in can_receive
-    has_color_rgb = (
-        _CAP_COLOR_HUE in can_receive and _CAP_COLOR_SATURATION in can_receive
-    )
+    has_color_rgb = _CAP_COLOR_HUE in can_receive and _CAP_COLOR_SATURATION in can_receive
 
     logger.debug(
         "map_light: capabilities — dimming=%s, color_temp=%s, rgb=%s",
@@ -188,11 +185,11 @@ def map_light(
 
 
 def _build_light_extra(
-    attrs: Dict[str, Any],
+    attrs: dict[str, Any],
     has_dimming: bool,
     has_color_temp: bool,
     has_color_rgb: bool,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Build the extra fields dict for the HA MQTT light entity based
     on the detected capability tier.
@@ -204,10 +201,10 @@ def _build_light_extra(
         has_color_rgb (bool):  Device supports full RGB color.
 
     Returns:
-        Dict[str, Any]: extra fields for the Entity constructor.
+        dict[str, Any]: extra fields for the Entity constructor.
     """
 
-    extra: Dict[str, Any] = {}
+    extra: dict[str, Any] = {}
 
     # ── Brightness ────────────────────────────────────────────────────────
     if has_dimming:
@@ -233,8 +230,7 @@ def _build_light_extra(
                 extra["max_mireds"] = max_mireds
             except (ZeroDivisionError, TypeError, ValueError) as exc:
                 logger.warning(
-                    "map_light: could not convert colour temperature "
-                    "range (%sK–%sK) to mireds: %s",
+                    "map_light: could not convert colour temperature range (%sK–%sK) to mireds: %s",
                     min_k,
                     max_k,
                     exc,

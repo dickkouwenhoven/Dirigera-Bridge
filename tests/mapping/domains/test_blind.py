@@ -13,12 +13,16 @@ Covers:
     - DEVICE_TYPES both keys point to same function
 """
 
-import pytest
+from typing import Any
 
+import pytest
+from ha_mqtt_sdk import DeviceInfo
+
+from app.mapping import DeviceContext
 from app.mapping.domains.blind import DEVICE_TYPES, map_blind
 
 
-class MockDeviceInfo(dict):
+class MockDeviceInfo(DeviceInfo):
     """
     Minimal DeviceInfo double for domain-mapper unit tests.
 
@@ -32,16 +36,17 @@ class MockDeviceInfo(dict):
     pass
 
 
-class MockAttrs:
-    def __init__(self, d):
+class MockAttrs(dict[str, Any]):
+    def __init__(self, d: Any):
+        super().__init__()
         self._d = d
 
-    def get(self, k, default=None):
+    def get(self, k: Any, default: Any = None) -> Any:
         return self._d.get(k, default)
 
 
-class MockContext:
-    def __init__(self, attrs, name="Gordijn", lid="blind_abc_1"):
+class MockContext(DeviceContext):
+    def __init__(self, attrs: Any, name: str = "Gordijn", lid: str = "blind_abc_1") -> None:
         self.logical_id = lid
         self.device_name = name
         self.attributes = MockAttrs(attrs)
@@ -49,7 +54,7 @@ class MockContext:
 
 class TestMapBlind:
     @pytest.mark.unit
-    def test_always_produces_cover_entity(self):
+    def test_always_produces_cover_entity(self) -> None:
         """map_blind always produces at least one cover entity."""
         ctx = MockContext({"currentLevel": 50})
         result = map_blind(ctx, MockDeviceInfo())
@@ -57,28 +62,28 @@ class TestMapBlind:
         assert result[0].domain.value == "cover"
 
     @pytest.mark.unit
-    def test_without_battery_produces_one_entity(self):
+    def test_without_battery_produces_one_entity(self) -> None:
         """No battery → 1 cover entity."""
         ctx = MockContext({"currentLevel": 50})
         result = map_blind(ctx, MockDeviceInfo())
         assert len(result) == 1
 
     @pytest.mark.unit
-    def test_with_battery_produces_two_entities(self):
+    def test_with_battery_produces_two_entities(self) -> None:
         """With battery → 2 entities."""
         ctx = MockContext({"currentLevel": 0, "batteryPercentage": 80})
         result = map_blind(ctx, MockDeviceInfo())
         assert len(result) == 2
 
     @pytest.mark.unit
-    def test_cover_device_class_blind(self):
+    def test_cover_device_class_blind(self) -> None:
         """Cover entity has device_class=blind."""
         ctx = MockContext({})
         result = map_blind(ctx, MockDeviceInfo())
         assert result[0].extra["device_class"] == "blind"
 
     @pytest.mark.unit
-    def test_cover_payload_commands(self):
+    def test_cover_payload_commands(self) -> None:
         """Cover entity has OPEN/CLOSE/STOP payloads."""
         ctx = MockContext({})
         result = map_blind(ctx, MockDeviceInfo())
@@ -88,7 +93,7 @@ class TestMapBlind:
         assert extra["payload_stop"] == "STOP"
 
     @pytest.mark.unit
-    def test_cover_position_range(self):
+    def test_cover_position_range(self) -> None:
         """Cover entity has position_open=100 and position_closed=0."""
         ctx = MockContext({})
         result = map_blind(ctx, MockDeviceInfo())
@@ -97,21 +102,21 @@ class TestMapBlind:
         assert extra["position_closed"] == 0
 
     @pytest.mark.unit
-    def test_cover_not_optimistic(self):
+    def test_cover_not_optimistic(self) -> None:
         """Cover entity has optimistic=False."""
         ctx = MockContext({})
         result = map_blind(ctx, MockDeviceInfo())
         assert result[0].extra["optimistic"] is False
 
     @pytest.mark.unit
-    def test_cover_name_equals_device_name(self):
+    def test_cover_name_equals_device_name(self) -> None:
         """Cover entity name equals device name."""
         ctx = MockContext({}, name="Slaapkamergordijn")
         result = map_blind(ctx, MockDeviceInfo())
         assert result[0].name == "Slaapkamergordijn"
 
     @pytest.mark.unit
-    def test_battery_entity_config(self):
+    def test_battery_entity_config(self) -> None:
         """Battery entity has correct config."""
         ctx = MockContext({"batteryPercentage": 80}, lid="blind_1")
         result = map_blind(ctx, MockDeviceInfo())
@@ -121,7 +126,7 @@ class TestMapBlind:
         assert battery.unique_id.endswith("battery")
 
     @pytest.mark.unit
-    def test_unique_ids_distinct(self):
+    def test_unique_ids_distinct(self) -> None:
         """Cover and battery unique_ids are distinct."""
         ctx = MockContext({"batteryPercentage": 80})
         result = map_blind(ctx, MockDeviceInfo())
@@ -131,12 +136,12 @@ class TestMapBlind:
 
 class TestBlindDeviceTypes:
     @pytest.mark.unit
-    def test_both_keys_registered(self):
+    def test_both_keys_registered(self) -> None:
         """Both 'blind' and 'blinds' are registered."""
         assert "blind" in DEVICE_TYPES
         assert "blinds" in DEVICE_TYPES
 
     @pytest.mark.unit
-    def test_both_keys_same_function(self):
+    def test_both_keys_same_function(self) -> None:
         """Both keys point to the same mapper function."""
         assert DEVICE_TYPES["blind"] is DEVICE_TYPES["blinds"]

@@ -75,7 +75,7 @@ def configure_logging(log_level: str) -> None:
 
     logging.basicConfig(
         level=numeric_level,
-        format=("%(asctime)s.%(msecs)03d %(levelname)-8s %(name)-40s %(message)s"),
+        format="%(asctime)s.%(msecs)03d %(levelname)-8s %(name)-40s %(message)s",
         datefmt="%Y-%m-%dT%H:%M:%S",
         stream=sys.stdout,
         force=True,

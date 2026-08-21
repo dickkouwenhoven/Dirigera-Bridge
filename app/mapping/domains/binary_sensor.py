@@ -60,14 +60,11 @@ Design notes:
 from __future__ import annotations
 
 import logging
-from typing import List
+
+from ha_mqtt_sdk import DeviceInfo, Entity, HADomain
 
 from ..device_registry import DeviceContext
-from ha_mqtt_sdk import HADomain
-from ha_mqtt_sdk import Entity
-from ha_mqtt_sdk import DeviceInfo
-
-from . import make_unique_id, make_battery_entity
+from . import make_battery_entity, make_unique_id
 
 __all__ = [
     "DEVICE_TYPES",
@@ -86,7 +83,7 @@ _ATTR_BATTERY_PERCENTAGE = "batteryPercentage"
 def map_motion_sensor(
     context: DeviceContext,
     device_info: DeviceInfo,
-) -> List[Entity]:
+) -> list[Entity]:
     """
     Map a Dirigera motionSensor DeviceContext to HA entities.
 
@@ -102,7 +99,7 @@ def map_motion_sensor(
                                   grouping in HA.
 
     Returns:
-        List[Entity]: 1 entity (motion only) or 2 entities
+        list[Entity]: 1 entity (motion only) or 2 entities
                       (motion + battery).
     """
 
@@ -115,7 +112,7 @@ def map_motion_sensor(
         lid,
     )
 
-    entities: List[Entity] = [
+    entities: list[Entity] = [
         _make_binary_sensor(
             logical_id=lid,
             name=name,
@@ -128,7 +125,7 @@ def map_motion_sensor(
 
     # ── Secondary: battery sensor ─────────────────────────────────────────
     battery_pct = context.attributes.get(_ATTR_BATTERY_PERCENTAGE)
-    if battery_pct is not None:
+    if isinstance(battery_pct, (int, float)):
         entities.append(
             make_battery_entity(
                 logical_id=lid,
@@ -148,9 +145,9 @@ def map_motion_sensor(
 
 
 def map_water_sensor(
-    context: "DeviceContext",
+    context: DeviceContext,
     device_info: DeviceInfo,
-) -> List[Entity]:
+) -> list[Entity]:
     """
     Map a Dirigera waterSensor DeviceContext to HA entities.
 
@@ -166,7 +163,7 @@ def map_water_sensor(
                                   grouping in HA.
 
     Returns:
-        List[Entity]: 1 entity (moisture only) or 2 entities
+        list[Entity]: 1 entity (moisture only) or 2 entities
                       (moisture + battery).
     """
 
@@ -179,7 +176,7 @@ def map_water_sensor(
         lid,
     )
 
-    entities: List[Entity] = [
+    entities: list[Entity] = [
         _make_binary_sensor(
             logical_id=lid,
             name=name,
@@ -192,7 +189,7 @@ def map_water_sensor(
 
     # ── Secondary: battery sensor ─────────────────────────────────────────
     battery_pct = context.attributes.get(_ATTR_BATTERY_PERCENTAGE)
-    if battery_pct is not None:
+    if isinstance(battery_pct, (int, float)):
         entities.append(
             make_battery_entity(
                 logical_id=lid,

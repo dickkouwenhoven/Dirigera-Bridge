@@ -71,10 +71,10 @@ Design notes:
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import logging
 import ssl
-from typing import Optional
 
 import websockets
 import websockets.exceptions
@@ -162,14 +162,14 @@ class DirigeraWebSocketClient:
         self._metrics = metrics
 
         # WebSocket connection — set while connected
-        self._ws: Optional[ClientConnection] = None
+        self._ws: ClientConnection | None = None
 
         # Signals the reconnect loop to stop cleanly during shutdown
         self._stop_event: asyncio.Event = asyncio.Event()
 
         # Background tasks
-        self._listen_task: Optional[asyncio.Task] = None
-        self._ping_task: Optional[asyncio.Task] = None
+        self._listen_task: asyncio.Task[None] | None = None
+        self._ping_task: asyncio.Task[None] | None = None
 
         self._ws_url = f"wss://{settings.dirigera_ip}:{_WS_PORT}{_WS_PATH}"
 
@@ -235,10 +235,8 @@ class DirigeraWebSocketClient:
         # ── Cancel ping task ──────────────────────────────────────────────
         if self._ping_task and not self._ping_task.done():
             self._ping_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self._ping_task
-            except asyncio.CancelledError:
-                pass
 
         # ── Close WebSocket ───────────────────────────────────────────────
         await self._close_ws()
@@ -246,10 +244,8 @@ class DirigeraWebSocketClient:
         # ── Cancel connection loop ────────────────────────────────────────
         if self._listen_task and not self._listen_task.done():
             self._listen_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self._listen_task
-            except asyncio.CancelledError:
-                pass
 
         logger.info("DirigeraWebSocketClient: stopped")
 
@@ -282,8 +278,7 @@ class DirigeraWebSocketClient:
         ):
             if self._lifecycle.is_stopping():
                 logger.info(
-                    "DirigeraWebSocketClient: lifecycle is stopping — "
-                    "exiting connection loop"
+                    "DirigeraWebSocketClient: lifecycle is stopping — exiting connection loop"
                 )
                 return
 
@@ -313,8 +308,7 @@ class DirigeraWebSocketClient:
 
                 # Connection dropped unexpectedly — fall through to retry
                 logger.warning(
-                    "DirigeraWebSocketClient: connection closed "
-                    "unexpectedly — will retry"
+                    "DirigeraWebSocketClient: connection closed unexpectedly — will retry"
                 )
                 self._metrics.increment(MetricName.WS_DISCONNECTS)
 
@@ -359,9 +353,7 @@ class DirigeraWebSocketClient:
         async with websockets.connect(
             self._ws_url,
             ssl=ssl_ctx,
-            additional_headers={
-                "Authorization": f"Bearer {self._settings.dirigera_token}"
-            },
+            additional_headers={"Authorization": f"Bearer {self._settings.dirigera_token}"},
             ping_interval=None,  # we manage ping/pong manually
             ping_timeout=None,
             open_timeout=10,
@@ -391,10 +383,8 @@ class DirigeraWebSocketClient:
                 # ── Cancel ping task when connection closes ───────────────
                 if self._ping_task and not self._ping_task.done():
                     self._ping_task.cancel()
-                    try:
+                    with contextlib.suppress(asyncio.CancelledError):
                         await self._ping_task
-                    except asyncio.CancelledError:
-                        pass
 
                 self._ws = None
 
@@ -422,10 +412,7 @@ class DirigeraWebSocketClient:
                 return
 
             # ── Normalize to str (websockets v11+ yields str | bytes) ─────
-            if isinstance(raw_message, bytes):
-                message = raw_message.decode("utf-8")
-            else:
-                message = raw_message
+            message = raw_message.decode("utf-8") if isinstance(raw_message, bytes) else raw_message
 
             logger.debug(
                 "DirigeraWebSocketClient: raw message received (len=%d)",
@@ -466,8 +453,7 @@ class DirigeraWebSocketClient:
             self._metrics.increment(MetricName.WS_MESSAGES_PARSE_ERROR)
             self._metrics.increment(MetricName.ERROR_WS)
             logger.warning(
-                "DirigeraWebSocketClient: failed to parse JSON "
-                "message: %s — raw: %.200s",
+                "DirigeraWebSocketClient: failed to parse JSON message: %s — raw: %.200s",
                 exc,
                 raw_message,
             )
@@ -519,10 +505,7 @@ class DirigeraWebSocketClient:
         """
 
         if ws_event.data is None:
-            logger.debug(
-                "DirigeraWebSocketClient: state change event has "
-                "no data block — ignoring"
-            )
+            logger.debug("DirigeraWebSocketClient: state change event has no data block — ignoring")
             return
 
         data = ws_event.data
@@ -532,9 +515,7 @@ class DirigeraWebSocketClient:
         # ---- Reachability - dedicated event, not a generic attribute ----
         if data.is_reachable is not None:
             event_type = (
-                EventType.DEVICE_REACHABLE
-                if data.is_reachable
-                else EventType.DEVICE_UNREACHABLE
+                EventType.DEVICE_REACHABLE if data.is_reachable else EventType.DEVICE_UNREACHABLE
             )
             logger.debug(
                 "DirigeraWebSocketClient: %s for %s",
@@ -550,7 +531,7 @@ class DirigeraWebSocketClient:
                 )
             )
 
-        # ---- Odinary changed attributes ---------------
+        # ---- Ordinary changed attributes ---------------
         # Deliberately data.attriburtes.get_changed() NOT
         # data.changed_attributes - the latter merges isReachable back
         # in, which is now handled above and must not also loop below.
@@ -691,7 +672,7 @@ class DirigeraWebSocketClient:
 
                 logger.debug("DirigeraWebSocketClient: pong received")
 
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 logger.warning(
                     "DirigeraWebSocketClient: pong not received within "
                     "%ds — closing connection to trigger reconnect",
@@ -703,8 +684,7 @@ class DirigeraWebSocketClient:
 
             except websockets.exceptions.ConnectionClosed:
                 logger.debug(
-                    "DirigeraWebSocketClient: connection closed during "
-                    "ping — ping loop exiting"
+                    "DirigeraWebSocketClient: connection closed during ping — ping loop exiting"
                 )
                 return
 

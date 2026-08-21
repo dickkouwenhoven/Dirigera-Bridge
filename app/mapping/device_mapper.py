@@ -20,7 +20,7 @@ What it does:
     - Builds a DeviceInfo using create_device_info() from the HASDK,
       keyed on context.serial_number (the physical device identifier)
     - Looks up the domain mapper function in DEVICE_TYPE_REGISTRY
-    - Calls the mapper and returns the resulting List[Entity]
+    - Calls the mapper and returns the resulting list[Entity]
     - Logs and increments metrics for unknown device types
     - Returns an empty list for unknown/unsupported device types so
       one unknown type never prevents other devices from loading
@@ -45,7 +45,7 @@ Design notes:
     - DeviceInfo uses serial_number as the identifier (not relation_id
       or logical_id).  Dirigera's raw discovery data has three
       candidate fields per device - id, relationId, and serialNumber
-      - but relationId is not present on every device, so it can´t be
+      - but relationId is not present on every device, so it can not be
       relied on. id is derived from serialNumber with a "_1"/"_2"/...
       suffix appended for sibling logical devices grouped under one
       physical device (e.q. a multi-button remote). serialNumber is
@@ -63,10 +63,8 @@ Design notes:
 from __future__ import annotations
 
 import logging
-from typing import List
 
-from ha_mqtt_sdk import Entity
-from ha_mqtt_sdk import DeviceInfo, create_device_info
+from ha_mqtt_sdk import DeviceInfo, Entity, create_device_info
 
 from ..core.errors import DirigeraBridgeError, ErrorCode
 from ..core.metrics import MetricName, MetricsStore
@@ -100,8 +98,7 @@ class DeviceMapper:
         if not isinstance(metrics, MetricsStore):
             raise DirigeraBridgeError(
                 ErrorCode.INTERNAL_INVALID_ARGUMENT,
-                f"DeviceMapper: metrics must be MetricsStore, "
-                f"got {type(metrics).__name__}",
+                f"DeviceMapper: metrics must be MetricsStore, got {type(metrics).__name__}",
             )
 
         self._metrics = metrics
@@ -113,7 +110,7 @@ class DeviceMapper:
 
     # ── Public API ────────────────────────────────────────────────────────
 
-    def map_device(self, context: DeviceContext) -> List[Entity]:
+    def map_device(self, context: DeviceContext) -> list[Entity]:
         """
         Map a single DeviceContext to a list of HA Entity objects.
 
@@ -129,7 +126,7 @@ class DeviceMapper:
                                      device_registry.build_device_contexts().
 
         Returns:
-            List[Entity]: Zero or more HA entities for this device.
+            list[Entity]: Zero or more HA entities for this device.
                           Empty list if device type is unsupported or
                           mapping fails.
 
@@ -142,8 +139,7 @@ class DeviceMapper:
         if not isinstance(context, DeviceContext):
             raise DirigeraBridgeError(
                 ErrorCode.INTERNAL_INVALID_ARGUMENT,
-                f"map_device: context must be DeviceContext, "
-                f"got {type(context).__name__}",
+                f"map_device: context must be DeviceContext, got {type(context).__name__}",
             )
 
         # ── Look up domain mapper ─────────────────────────────────────────
@@ -177,8 +173,7 @@ class DeviceMapper:
         if device_info is None:
             self._metrics.increment(MetricName.MAPPING_ERRORS)
             logger.warning(
-                "map_device: failed to build DeviceInfo for '%s' "
-                "(logical_id=%s) — skipping",
+                "map_device: failed to build DeviceInfo for '%s' (logical_id=%s) — skipping",
                 context.device_name,
                 context.logical_id,
             )
@@ -219,8 +214,8 @@ class DeviceMapper:
 
     def map_devices(
         self,
-        contexts: List[DeviceContext],
-    ) -> List[Entity]:
+        contexts: list[DeviceContext],
+    ) -> list[Entity]:
         """
         Map a list of DeviceContext objects to a flat list of HA
         entities.
@@ -231,11 +226,11 @@ class DeviceMapper:
         of all successfully mapped entities.
 
         Args:
-            contexts (List[DeviceContext]): List of normalized device
+            contexts (list[DeviceContext]): List of normalized device
                                             contexts to map.
 
         Returns:
-            List[Entity]: Flat list of all HA entities from all
+            list[Entity]: Flat list of all HA entities from all
                           successfully mapped devices.
 
         Raises:
@@ -249,7 +244,7 @@ class DeviceMapper:
                 f"map_devices: contexts must be a list, got {type(contexts).__name__}",
             )
 
-        all_entities: List[Entity] = []
+        all_entities: list[Entity] = []
 
         for context in contexts:
             entities = self.map_device(context)
@@ -264,7 +259,7 @@ class DeviceMapper:
         return all_entities
 
     @staticmethod
-    def supported_device_types() -> List[str]:
+    def supported_device_types() -> list[str]:
         """
         Return a sorted list of all registered deviceType strings.
 
@@ -272,7 +267,7 @@ class DeviceMapper:
         at startup so it is clear which device types are supported.
 
         Returns:
-            List[str]: Sorted list of supported Dirigera deviceType
+            list[str]: Sorted list of supported Dirigera deviceType
                        strings.
         """
 
@@ -281,7 +276,7 @@ class DeviceMapper:
 
 # ── Module-level helpers ───────────────────────────────────────────────────────
 #
-# build_device_info() is a standalone function, not a DeviceMapper method,
+# build_device_info() is a standalone function. Is not a DeviceMapper method,
 # matching HA-MQTT-SDK's own convention (create_device_info, create_entity,
 # build_registration are all free functions in the SDK, called by thin
 # class methods rather than implemented as the methods themselves). This
@@ -340,8 +335,7 @@ def build_device_info(context: DeviceContext) -> DeviceInfo | None:
 
     except Exception as exc:
         logger.error(
-            "build_device_info: failed to build DeviceInfo for "
-            "'%s' (logical_id=%s): %s",
+            "build_device_info: failed to build DeviceInfo for '%s' (logical_id=%s): %s",
             context.device_name,
             context.logical_id,
             exc,

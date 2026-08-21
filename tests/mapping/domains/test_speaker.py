@@ -24,12 +24,16 @@ Covers:
     - DEVICE_TYPES registry
 """
 
-import pytest
+from typing import Any
 
+import pytest
+from ha_mqtt_sdk import DeviceInfo
+
+from app.mapping import DeviceContext
 from app.mapping.domains.speaker import DEVICE_TYPES, map_speaker
 
 
-class MockDeviceInfo(dict):
+class MockDeviceInfo(DeviceInfo):
     """
     Minimal DeviceInfo double for domain-mapper unit tests.
 
@@ -43,22 +47,28 @@ class MockDeviceInfo(dict):
     pass
 
 
-class MockAttrs:
-    def __init__(self, d):
+class MockAttrs(dict[str, Any]):
+    def __init__(self, d: Any):
+        super().__init__()
         self._d = d
 
-    def get(self, k, default=None):
+    def get(self, k: Any, default: Any = None) -> Any:
         return self._d.get(k, default)
 
 
-class MockContext:
-    def __init__(self, attrs=None, name="SYMFONISK", lid="speaker_abc_1"):
+class MockContext(DeviceContext):
+    def __init__(
+        self,
+        attrs: Any = None,
+        name: str = "SYMFONISK",
+        lid: str = "speaker_abc_1",
+    ) -> None:
         self.logical_id = lid
         self.device_name = name
         self.attributes = MockAttrs(attrs or {})
 
 
-def _by_suffix(entities, suffix):
+def _by_suffix(entities: Any, suffix: Any) -> Any:
     """Find the single entity whose unique_id ends with the given suffix."""
     matches = [e for e in entities if e.unique_id.endswith(f"_{suffix}")]
     assert len(matches) == 1, f"expected exactly one entity with suffix '{suffix}'"
@@ -70,7 +80,7 @@ def _by_suffix(entities, suffix):
 
 class TestMapSpeakerStructure:
     @pytest.mark.unit
-    def test_returns_six_entities(self):
+    def test_returns_six_entities(self) -> None:
         """map_speaker always returns exactly six entities."""
         ctx = MockContext()
         result = map_speaker(ctx, MockDeviceInfo())
@@ -78,14 +88,14 @@ class TestMapSpeakerStructure:
         assert len(result) == 6
 
     @pytest.mark.unit
-    def test_works_with_empty_attributes(self):
+    def test_works_with_empty_attributes(self) -> None:
         """map_speaker works with no attributes — no conditional entities."""
         ctx = MockContext({})
         result = map_speaker(ctx, MockDeviceInfo())
         assert len(result) == 6
 
     @pytest.mark.unit
-    def test_all_unique_ids_distinct(self):
+    def test_all_unique_ids_distinct(self) -> None:
         """All six unique_ids are distinct."""
         ctx = MockContext()
         result = map_speaker(ctx, MockDeviceInfo())
@@ -93,7 +103,7 @@ class TestMapSpeakerStructure:
         assert len(uids) == len(set(uids))
 
     @pytest.mark.unit
-    def test_all_unique_ids_have_dirigera_prefix(self):
+    def test_all_unique_ids_have_dirigera_prefix(self) -> None:
         """All unique_ids start with 'dirigera_'."""
         ctx = MockContext()
         result = map_speaker(ctx, MockDeviceInfo())
@@ -101,7 +111,7 @@ class TestMapSpeakerStructure:
             assert entity.unique_id.startswith("dirigera_")
 
     @pytest.mark.unit
-    def test_unique_id_hyphens_replaced(self):
+    def test_unique_id_hyphens_replaced(self) -> None:
         """Hyphens in logical_id are replaced with underscores."""
         ctx = MockContext(lid="speaker-abc-1")
         result = map_speaker(ctx, MockDeviceInfo())
@@ -109,15 +119,16 @@ class TestMapSpeakerStructure:
             assert "-" not in entity.unique_id
 
     @pytest.mark.unit
-    def test_all_entity_names_contain_device_name(self):
+    def test_all_entity_names_contain_device_name(self) -> None:
         """All entity names contain the device name."""
         ctx = MockContext(name="SYMFONISK Woonkamer")
         result = map_speaker(ctx, MockDeviceInfo())
         for entity in result:
+            assert isinstance(entity.name, str)
             assert "SYMFONISK Woonkamer" in entity.name
 
     @pytest.mark.unit
-    def test_no_battery_entity(self):
+    def test_no_battery_entity(self) -> None:
         """No battery entity — SYMFONISK is mains powered."""
         ctx = MockContext()
         result = map_speaker(ctx, MockDeviceInfo())
@@ -130,21 +141,21 @@ class TestMapSpeakerStructure:
 
 class TestReachableSensor:
     @pytest.mark.unit
-    def test_domain_is_binary_sensor(self):
+    def test_domain_is_binary_sensor(self) -> None:
         ctx = MockContext()
         result = map_speaker(ctx, MockDeviceInfo())
         entity = _by_suffix(result, "reachable")
         assert entity.domain.value == "binary_sensor"
 
     @pytest.mark.unit
-    def test_connectivity_device_class(self):
+    def test_connectivity_device_class(self) -> None:
         ctx = MockContext()
         result = map_speaker(ctx, MockDeviceInfo())
         entity = _by_suffix(result, "reachable")
         assert entity.extra["device_class"] == "connectivity"
 
     @pytest.mark.unit
-    def test_payload_on_off(self):
+    def test_payload_on_off(self) -> None:
         ctx = MockContext()
         result = map_speaker(ctx, MockDeviceInfo())
         entity = _by_suffix(result, "reachable")
@@ -152,7 +163,7 @@ class TestReachableSensor:
         assert entity.extra["payload_off"] == "OFF"
 
     @pytest.mark.unit
-    def test_is_diagnostic(self):
+    def test_is_diagnostic(self) -> None:
         ctx = MockContext()
         result = map_speaker(ctx, MockDeviceInfo())
         entity = _by_suffix(result, "reachable")
@@ -164,14 +175,14 @@ class TestReachableSensor:
 
 class TestPlaybackSensor:
     @pytest.mark.unit
-    def test_domain_is_sensor(self):
+    def test_domain_is_sensor(self) -> None:
         ctx = MockContext()
         result = map_speaker(ctx, MockDeviceInfo())
         entity = _by_suffix(result, "playback")
         assert entity.domain.value == "sensor"
 
     @pytest.mark.unit
-    def test_no_device_class(self):
+    def test_no_device_class(self) -> None:
         """Plain string sensor — no device_class, unlike e.g. battery."""
         ctx = MockContext()
         result = map_speaker(ctx, MockDeviceInfo())
@@ -184,14 +195,14 @@ class TestPlaybackSensor:
 
 class TestVolumeNumber:
     @pytest.mark.unit
-    def test_domain_is_number(self):
+    def test_domain_is_number(self) -> None:
         ctx = MockContext()
         result = map_speaker(ctx, MockDeviceInfo())
         entity = _by_suffix(result, "volume")
         assert entity.domain.value == "number"
 
     @pytest.mark.unit
-    def test_range_is_0_to_100_step_1(self):
+    def test_range_is_0_to_100_step_1(self) -> None:
         """Matches Dirigera's confirmed native 0-100 int volume range."""
         ctx = MockContext()
         result = map_speaker(ctx, MockDeviceInfo())
@@ -201,7 +212,7 @@ class TestVolumeNumber:
         assert entity.extra["step"] == 1
 
     @pytest.mark.unit
-    def test_mode_is_slider(self):
+    def test_mode_is_slider(self) -> None:
         ctx = MockContext()
         result = map_speaker(ctx, MockDeviceInfo())
         entity = _by_suffix(result, "volume")
@@ -213,21 +224,21 @@ class TestVolumeNumber:
 
 class TestTrackButtons:
     @pytest.mark.unit
-    def test_next_button_domain(self):
+    def test_next_button_domain(self) -> None:
         ctx = MockContext()
         result = map_speaker(ctx, MockDeviceInfo())
         entity = _by_suffix(result, "next")
         assert entity.domain.value == "button"
 
     @pytest.mark.unit
-    def test_previous_button_domain(self):
+    def test_previous_button_domain(self) -> None:
         ctx = MockContext()
         result = map_speaker(ctx, MockDeviceInfo())
         entity = _by_suffix(result, "previous")
         assert entity.domain.value == "button"
 
     @pytest.mark.unit
-    def test_next_payload_press(self):
+    def test_next_payload_press(self) -> None:
         """Custom payload lets command_mapper distinguish next vs previous
         purely by payload content, without needing per-topic routing."""
         ctx = MockContext()
@@ -236,14 +247,14 @@ class TestTrackButtons:
         assert entity.extra["payload_press"] == "NEXT"
 
     @pytest.mark.unit
-    def test_previous_payload_press(self):
+    def test_previous_payload_press(self) -> None:
         ctx = MockContext()
         result = map_speaker(ctx, MockDeviceInfo())
         entity = _by_suffix(result, "previous")
         assert entity.extra["payload_press"] == "PREVIOUS"
 
     @pytest.mark.unit
-    def test_next_and_previous_payloads_distinct(self):
+    def test_next_and_previous_payloads_distinct(self) -> None:
         ctx = MockContext()
         result = map_speaker(ctx, MockDeviceInfo())
         next_entity = _by_suffix(result, "next")
@@ -256,14 +267,14 @@ class TestTrackButtons:
 
 class TestPowerSwitch:
     @pytest.mark.unit
-    def test_domain_is_switch(self):
+    def test_domain_is_switch(self) -> None:
         ctx = MockContext()
         result = map_speaker(ctx, MockDeviceInfo())
         entity = _by_suffix(result, "power")
         assert entity.domain.value == "switch"
 
     @pytest.mark.unit
-    def test_no_extra_config(self):
+    def test_no_extra_config(self) -> None:
         """Plain switch — no custom payload_on/off, HA defaults apply."""
         ctx = MockContext()
         result = map_speaker(ctx, MockDeviceInfo())
@@ -276,12 +287,12 @@ class TestPowerSwitch:
 
 class TestSpeakerDeviceTypes:
     @pytest.mark.unit
-    def test_speaker_key_registered(self):
+    def test_speaker_key_registered(self) -> None:
         """DEVICE_TYPES maps 'speaker' to map_speaker."""
         assert "speaker" in DEVICE_TYPES
         assert DEVICE_TYPES["speaker"] is map_speaker
 
     @pytest.mark.unit
-    def test_only_one_key(self):
+    def test_only_one_key(self) -> None:
         """Only 'speaker' registered in this module."""
         assert len(DEVICE_TYPES) == 1

@@ -1,3 +1,4 @@
+# noinspection GrazieStyle
 """
 speaker.py
 
@@ -111,13 +112,10 @@ Design notes — what is CONFIRMED vs ASSUMED:
 from __future__ import annotations
 
 import logging
-from typing import List
+
+from ha_mqtt_sdk import DeviceInfo, Entity, HADomain
 
 from ..device_registry import DeviceContext
-from ha_mqtt_sdk import HADomain
-from ha_mqtt_sdk import Entity
-from ha_mqtt_sdk import DeviceInfo
-
 from . import make_unique_id
 
 __all__ = [
@@ -129,9 +127,9 @@ logger = logging.getLogger(__name__)
 
 
 def map_speaker(
-    context: DeviceContext,  # type: ignore[name-defined]
+    context: DeviceContext,
     device_info: DeviceInfo,
-) -> List[Entity]:
+) -> list[Entity]:
     """
     Map a Dirigera speaker DeviceContext to a list of HA entities
     composing a "virtual" media player from primitive MQTT domains.
@@ -143,7 +141,7 @@ def map_speaker(
                                   grouping in HA.
 
     Returns:
-        List[Entity]: Six entities — binary_sensor, sensor, number,
+        list[Entity]: Six entities — binary_sensor, sensor, number,
                       two buttons, and a switch. See module docstring
                       for which parts are confirmed vs assumed.
     """

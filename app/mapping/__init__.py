@@ -18,7 +18,7 @@ Public API:
     - DeviceContext / build_device_contexts
 
 Example:
-    from app.mapping import (
+    from .mapping import (
         CommandMapper,
         DeviceMapper,
         StateMapper,

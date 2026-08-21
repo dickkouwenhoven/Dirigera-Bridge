@@ -30,7 +30,7 @@ What it does:
 
 Arguments / Configuration:
     No runtime configuration. All functions are pure — they take a
-    DeviceContext and return List[Entity].
+    DeviceContext and return list[Entity].
 
 Used by:
     - app/mapping/device_mapper.py  (reads DEVICE_TYPE_REGISTRY,
@@ -60,14 +60,12 @@ Design notes:
 from __future__ import annotations
 
 import logging
-from typing import Callable, Dict, List
+from _collections_abc import Callable
 
-from ..device_registry import DeviceContext
-from ha_mqtt_sdk import Entity
-from ha_mqtt_sdk import DeviceInfo
-from ha_mqtt_sdk import HADomain
+from ha_mqtt_sdk import DeviceInfo, Entity, HADomain
 
 from ...core.errors import DirigeraBridgeError, ErrorCode
+from ..device_registry import DeviceContext
 
 __all__ = [
     "DomainMapper",
@@ -88,7 +86,7 @@ logger = logging.getLogger(__name__)
 # Import is deferred to avoid a circular import: DeviceContext is
 # defined in device_registry.py which imports from this package.
 # The type alias is only used for documentation and IDE support.
-DomainMapper = Callable[[DeviceContext, DeviceInfo], List[Entity]]  # type: ignore[name-defined]
+DomainMapper = Callable[[DeviceContext, DeviceInfo], list[Entity]]
 
 
 # ── Shared helpers ────────────────────────────────────────────────────────────
@@ -135,8 +133,7 @@ def make_unique_id(logical_id: str, suffix: str = "") -> str:
     if not isinstance(logical_id, str) or not logical_id.strip():
         raise DirigeraBridgeError(
             ErrorCode.INTERNAL_INVALID_ARGUMENT,
-            f"make_unique_id: logical_id must be a non-empty string, "
-            f"got {logical_id!r}",
+            f"make_unique_id: logical_id must be a non-empty string, got {logical_id!r}",
         )
 
     # Replace hyphens with underscores for MQTT topic safety
@@ -146,8 +143,7 @@ def make_unique_id(logical_id: str, suffix: str = "") -> str:
         if not isinstance(suffix, str) or not suffix.strip():
             raise DirigeraBridgeError(
                 ErrorCode.INTERNAL_INVALID_ARGUMENT,
-                f"make_unique_id: suffix must be a non-empty string "
-                f"if provided, got {suffix!r}",
+                f"make_unique_id: suffix must be a non-empty string if provided, got {suffix!r}",
             )
         return f"dirigera_{safe_id}_{suffix.strip()}"
 
@@ -253,14 +249,14 @@ def make_battery_entity(
 # Each mapper function has the signature:
 #
 #     def map_<type>(context: DeviceContext, device_info: DeviceInfo)
-#                   -> List[Entity]
+#                   -> list[Entity]
 #
 # Populated below by importing each domain module. Import errors for
 # individual modules are caught so one broken mapper does not prevent
 # the application from starting — it logs a warning and that device
 # type is skipped during mapping.
 
-DEVICE_TYPE_REGISTRY: Dict[str, DomainMapper] = {}
+DEVICE_TYPE_REGISTRY: dict[str, DomainMapper] = {}
 
 
 def _register_mappers() -> None:
@@ -304,13 +300,12 @@ def _register_mappers() -> None:
 
             if not hasattr(module, "DEVICE_TYPES"):
                 logger.warning(
-                    "Domain module '%s' has no DEVICE_TYPES dict — "
-                    "skipping registration",
+                    "Domain module '%s' has no DEVICE_TYPES dict — skipping registration",
                     name,
                 )
                 continue
 
-            device_types: Dict[str, DomainMapper] = module.DEVICE_TYPES
+            device_types: dict[str, DomainMapper] = module.DEVICE_TYPES
 
             for device_type, mapper_fn in device_types.items():
                 if device_type in DEVICE_TYPE_REGISTRY:

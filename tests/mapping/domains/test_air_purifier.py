@@ -14,12 +14,16 @@ Covers:
     - DEVICE_TYPES registry
 """
 
-import pytest
+from typing import Any
 
+import pytest
+from ha_mqtt_sdk import DeviceInfo
+
+from app.mapping import DeviceContext
 from app.mapping.domains.air_purifier import DEVICE_TYPES, map_air_purifier
 
 
-class MockDeviceInfo(dict):
+class MockDeviceInfo(DeviceInfo):
     """
     Minimal DeviceInfo double for domain-mapper unit tests.
 
@@ -33,16 +37,17 @@ class MockDeviceInfo(dict):
     pass
 
 
-class MockAttrs:
-    def __init__(self, d):
+class MockAttrs(dict[str, Any]):
+    def __init__(self, d: Any):
+        super().__init__()
         self._d = d
 
-    def get(self, k, default=None):
+    def get(self, k: Any, default: Any = None) -> Any:
         return self._d.get(k, default)
 
 
-class MockContext:
-    def __init__(self, attrs=None, name="STARKVIND", lid="ap_abc_1"):
+class MockContext(DeviceContext):
+    def __init__(self, attrs: Any = None, name: str = "STARKVIND", lid: str = "ap_abc_1") -> None:
         self.logical_id = lid
         self.device_name = name
         self.attributes = MockAttrs(attrs or {})
@@ -58,7 +63,7 @@ FULL_ATTRS = {
 
 class TestMapAirPurifierEntityCount:
     @pytest.mark.unit
-    def test_minimal_produces_one_fan(self):
+    def test_minimal_produces_one_fan(self) -> None:
         """No optional attrs → 1 fan entity."""
         ctx = MockContext({"fanMode": "low"})
         result = map_air_purifier(ctx, MockDeviceInfo())
@@ -66,21 +71,21 @@ class TestMapAirPurifierEntityCount:
         assert result[0].domain.value == "fan"
 
     @pytest.mark.unit
-    def test_with_pm25_produces_two(self):
+    def test_with_pm25_produces_two(self) -> None:
         """With fanSensorPM25 → 2 entities."""
         ctx = MockContext({"fanMode": "low", "fanSensorPM25": 5})
         result = map_air_purifier(ctx, MockDeviceInfo())
         assert len(result) == 2
 
     @pytest.mark.unit
-    def test_full_starkvind_produces_three(self):
+    def test_full_starkvind_produces_three(self) -> None:
         """Full STARKVIND attrs → 3 entities."""
         ctx = MockContext(FULL_ATTRS)
         result = map_air_purifier(ctx, MockDeviceInfo())
         assert len(result) == 3
 
     @pytest.mark.unit
-    def test_no_battery_entity(self):
+    def test_no_battery_entity(self) -> None:
         """No battery entity (mains powered)."""
         ctx = MockContext(FULL_ATTRS)
         result = map_air_purifier(ctx, MockDeviceInfo())
@@ -90,14 +95,14 @@ class TestMapAirPurifierEntityCount:
 
 class TestMapAirPurifierFanConfig:
     @pytest.mark.unit
-    def test_fan_domain(self):
+    def test_fan_domain(self) -> None:
         """Primary entity domain is 'fan'."""
         ctx = MockContext()
         result = map_air_purifier(ctx, MockDeviceInfo())
         assert result[0].domain.value == "fan"
 
     @pytest.mark.unit
-    def test_fan_speed_range(self):
+    def test_fan_speed_range(self) -> None:
         """Fan has speed_range_min=1 and speed_range_max=100."""
         ctx = MockContext()
         result = map_air_purifier(ctx, MockDeviceInfo())
@@ -106,21 +111,21 @@ class TestMapAirPurifierFanConfig:
         assert extra["speed_range_max"] == 100
 
     @pytest.mark.unit
-    def test_fan_preset_modes_include_auto(self):
+    def test_fan_preset_modes_include_auto(self) -> None:
         """Fan preset_modes includes 'auto'."""
         ctx = MockContext()
         result = map_air_purifier(ctx, MockDeviceInfo())
         assert "auto" in result[0].extra["preset_modes"]
 
     @pytest.mark.unit
-    def test_fan_not_optimistic(self):
+    def test_fan_not_optimistic(self) -> None:
         """Fan entity has optimistic=False."""
         ctx = MockContext()
         result = map_air_purifier(ctx, MockDeviceInfo())
         assert result[0].extra["optimistic"] is False
 
     @pytest.mark.unit
-    def test_fan_payload_on_off(self):
+    def test_fan_payload_on_off(self) -> None:
         """Fan has payload_on=ON and payload_off=OFF."""
         ctx = MockContext()
         result = map_air_purifier(ctx, MockDeviceInfo())
@@ -128,7 +133,7 @@ class TestMapAirPurifierFanConfig:
         assert result[0].extra["payload_off"] == "OFF"
 
     @pytest.mark.unit
-    def test_fan_name_equals_device_name(self):
+    def test_fan_name_equals_device_name(self) -> None:
         """Fan entity name equals device name."""
         ctx = MockContext(name="STARKVIND Woonkamer")
         result = map_air_purifier(ctx, MockDeviceInfo())
@@ -137,7 +142,7 @@ class TestMapAirPurifierFanConfig:
 
 class TestMapAirPurifierSensorConfig:
     @pytest.mark.unit
-    def test_pm25_sensor_config(self):
+    def test_pm25_sensor_config(self) -> None:
         """PM2.5 sensor has correct device_class and unit."""
         ctx = MockContext({"fanSensorPM25": 12})
         result = map_air_purifier(ctx, MockDeviceInfo())
@@ -147,7 +152,7 @@ class TestMapAirPurifierSensorConfig:
         assert pm25.extra["state_class"] == "measurement"
 
     @pytest.mark.unit
-    def test_pm25_uses_fan_sensor_attribute(self):
+    def test_pm25_uses_fan_sensor_attribute(self) -> None:
         """PM2.5 uses fanSensorPM25, not currentPM25."""
         ctx = MockContext({"currentPM25": 5})  # VINDSTYRKA attribute — wrong
         result = map_air_purifier(ctx, MockDeviceInfo())
@@ -155,7 +160,7 @@ class TestMapAirPurifierSensorConfig:
         assert len(result) == 1  # only fan
 
     @pytest.mark.unit
-    def test_filter_sensor_config(self):
+    def test_filter_sensor_config(self) -> None:
         """Filter sensor has diagnostic entity_category and icon."""
         ctx = MockContext({"filterLifetime": 95})
         result = map_air_purifier(ctx, MockDeviceInfo())
@@ -165,17 +170,19 @@ class TestMapAirPurifierSensorConfig:
         assert flt.extra["unit_of_measurement"] == "%"
 
     @pytest.mark.unit
-    def test_filter_name_contains_device_name(self):
+    def test_filter_name_contains_device_name(self) -> None:
         """Filter Life entity name contains device name."""
         ctx = MockContext({"filterLifetime": 95}, name="STARKVIND")
         result = map_air_purifier(ctx, MockDeviceInfo())
         flt = next(e for e in result if "filter" in e.unique_id)
-        assert "STARKVIND" in flt.name
+        name = flt.name
+        assert isinstance(name, str)
+        assert "STARKVIND" in name
 
 
 class TestMapAirPurifierUniqueIds:
     @pytest.mark.unit
-    def test_all_unique_ids_distinct(self):
+    def test_all_unique_ids_distinct(self) -> None:
         """All 3 unique_ids are distinct."""
         ctx = MockContext(FULL_ATTRS, lid="ap_1")
         result = map_air_purifier(ctx, MockDeviceInfo())
@@ -183,14 +190,14 @@ class TestMapAirPurifierUniqueIds:
         assert len(uids) == len(set(uids))
 
     @pytest.mark.unit
-    def test_fan_has_no_suffix(self):
+    def test_fan_has_no_suffix(self) -> None:
         """Fan entity unique_id has no suffix."""
         ctx = MockContext(lid="ap_1")
         result = map_air_purifier(ctx, MockDeviceInfo())
         assert result[0].unique_id == "dirigera_ap_1"
 
     @pytest.mark.unit
-    def test_sensor_suffixes(self):
+    def test_sensor_suffixes(self) -> None:
         """PM2.5 and filter sensors have correct suffixes."""
         ctx = MockContext(FULL_ATTRS, lid="ap_1")
         result = map_air_purifier(ctx, MockDeviceInfo())
@@ -201,11 +208,11 @@ class TestMapAirPurifierUniqueIds:
 
 class TestAirPurifierDeviceTypes:
     @pytest.mark.unit
-    def test_key_registered(self):
+    def test_key_registered(self) -> None:
         """DEVICE_TYPES maps 'airPurifier' to map_air_purifier."""
         assert "airPurifier" in DEVICE_TYPES
 
     @pytest.mark.unit
-    def test_only_one_key(self):
+    def test_only_one_key(self) -> None:
         """Only one key registered."""
         assert len(DEVICE_TYPES) == 1

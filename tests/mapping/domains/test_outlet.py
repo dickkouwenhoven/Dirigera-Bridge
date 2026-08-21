@@ -14,12 +14,16 @@ Covers:
     - DEVICE_TYPES registry
 """
 
-import pytest
+from typing import Any
 
+import pytest
+from ha_mqtt_sdk import DeviceInfo
+
+from app.mapping import DeviceContext
 from app.mapping.domains.outlet import DEVICE_TYPES, map_outlet
 
 
-class MockDeviceInfo(dict):
+class MockDeviceInfo(DeviceInfo):
     """
     Minimal DeviceInfo double for domain-mapper unit tests.
 
@@ -33,16 +37,17 @@ class MockDeviceInfo(dict):
     pass
 
 
-class MockAttrs:
-    def __init__(self, d):
+class MockAttrs(dict[str, Any]):
+    def __init__(self, d: Any):
+        super().__init__()
         self._d = d
 
-    def get(self, k, default=None):
+    def get(self, k: Any, default: Any = None) -> Any:
         return self._d.get(k, default)
 
 
-class MockContext:
-    def __init__(self, attrs, name="Computer Stekker", lid="outlet_abc_1"):
+class MockContext(DeviceContext):
+    def __init__(self, attrs: Any, name: str = "Computer Stekker", lid: str = "outlet_abc_1"):
         self.logical_id = lid
         self.device_name = name
         self.attributes = MockAttrs(attrs)
@@ -59,7 +64,7 @@ FULL_ATTRS = {
 
 class TestMapOutletEntityCount:
     @pytest.mark.unit
-    def test_minimal_produces_one_switch(self):
+    def test_minimal_produces_one_switch(self) -> None:
         """No energy attributes → only switch entity."""
         ctx = MockContext({"isOn": True})
         result = map_outlet(ctx, MockDeviceInfo())
@@ -67,14 +72,14 @@ class TestMapOutletEntityCount:
         assert result[0].domain.value == "switch"
 
     @pytest.mark.unit
-    def test_full_inspelning_produces_five(self):
+    def test_full_inspelning_produces_five(self) -> None:
         """Full INSPELNING → 5 entities."""
         ctx = MockContext(FULL_ATTRS)
         result = map_outlet(ctx, MockDeviceInfo())
         assert len(result) == 5
 
     @pytest.mark.unit
-    def test_partial_attributes_produce_partial_entities(self):
+    def test_partial_attributes_produce_partial_entities(self) -> None:
         """Only power present → switch + power sensor = 2."""
         ctx = MockContext({"isOn": True, "currentActivePower": 5.0})
         result = map_outlet(ctx, MockDeviceInfo())
@@ -83,14 +88,14 @@ class TestMapOutletEntityCount:
 
 class TestMapOutletDomains:
     @pytest.mark.unit
-    def test_first_entity_is_switch(self):
+    def test_first_entity_is_switch(self) -> None:
         """First entity is always the switch."""
         ctx = MockContext(FULL_ATTRS)
         result = map_outlet(ctx, MockDeviceInfo())
         assert result[0].domain.value == "switch"
 
     @pytest.mark.unit
-    def test_remaining_entities_are_sensors(self):
+    def test_remaining_entities_are_sensors(self) -> None:
         """All entities after the switch are sensors."""
         ctx = MockContext(FULL_ATTRS)
         result = map_outlet(ctx, MockDeviceInfo())
@@ -100,7 +105,7 @@ class TestMapOutletDomains:
 
 class TestMapOutletSensorConfig:
     @pytest.mark.unit
-    def test_power_sensor_config(self):
+    def test_power_sensor_config(self) -> None:
         """Power sensor has correct device_class, unit, state_class."""
         ctx = MockContext(FULL_ATTRS)
         result = map_outlet(ctx, MockDeviceInfo())
@@ -110,7 +115,7 @@ class TestMapOutletSensorConfig:
         assert power.extra["state_class"] == "measurement"
 
     @pytest.mark.unit
-    def test_voltage_sensor_config(self):
+    def test_voltage_sensor_config(self) -> None:
         """Voltage sensor has correct device_class and unit."""
         ctx = MockContext(FULL_ATTRS)
         result = map_outlet(ctx, MockDeviceInfo())
@@ -119,7 +124,7 @@ class TestMapOutletSensorConfig:
         assert voltage.extra["unit_of_measurement"] == "V"
 
     @pytest.mark.unit
-    def test_current_sensor_config(self):
+    def test_current_sensor_config(self) -> None:
         """Current sensor has correct device_class and unit."""
         ctx = MockContext(FULL_ATTRS)
         result = map_outlet(ctx, MockDeviceInfo())
@@ -134,7 +139,7 @@ class TestMapOutletSensorConfig:
         assert current.extra["unit_of_measurement"] == "A"
 
     @pytest.mark.unit
-    def test_energy_sensor_uses_total_increasing(self):
+    def test_energy_sensor_uses_total_increasing(self) -> None:
         """Energy sensor uses state_class=total_increasing."""
         ctx = MockContext(FULL_ATTRS)
         result = map_outlet(ctx, MockDeviceInfo())
@@ -144,7 +149,7 @@ class TestMapOutletSensorConfig:
         assert energy.extra["state_class"] == "total_increasing"
 
     @pytest.mark.unit
-    def test_switch_payload_convention(self):
+    def test_switch_payload_convention(self) -> None:
         """Switch has payload_on=ON and payload_off=OFF."""
         ctx = MockContext(FULL_ATTRS)
         result = map_outlet(ctx, MockDeviceInfo())
@@ -155,7 +160,7 @@ class TestMapOutletSensorConfig:
 
 class TestMapOutletUniqueIds:
     @pytest.mark.unit
-    def test_all_unique_ids_distinct(self):
+    def test_all_unique_ids_distinct(self) -> None:
         """All 5 unique_ids are distinct."""
         ctx = MockContext(FULL_ATTRS, lid="outlet_abc_1")
         result = map_outlet(ctx, MockDeviceInfo())
@@ -163,14 +168,14 @@ class TestMapOutletUniqueIds:
         assert len(uids) == len(set(uids))
 
     @pytest.mark.unit
-    def test_switch_has_no_suffix(self):
+    def test_switch_has_no_suffix(self) -> None:
         """Switch entity unique_id has no suffix."""
         ctx = MockContext(FULL_ATTRS, lid="outlet_1")
         result = map_outlet(ctx, MockDeviceInfo())
         assert result[0].unique_id == "dirigera_outlet_1"
 
     @pytest.mark.unit
-    def test_energy_sensors_have_correct_suffixes(self):
+    def test_energy_sensors_have_correct_suffixes(self) -> None:
         """Energy sensors have expected suffixes."""
         ctx = MockContext(FULL_ATTRS, lid="outlet_1")
         result = map_outlet(ctx, MockDeviceInfo())
@@ -183,27 +188,28 @@ class TestMapOutletUniqueIds:
 
 class TestMapOutletEntityNames:
     @pytest.mark.unit
-    def test_switch_name_equals_device_name(self):
+    def test_switch_name_equals_device_name(self) -> None:
         """Switch entity name equals the device name."""
         ctx = MockContext(FULL_ATTRS, name="Computer Stekker")
         result = map_outlet(ctx, MockDeviceInfo())
         assert result[0].name == "Computer Stekker"
 
     @pytest.mark.unit
-    def test_sensor_names_contain_device_name(self):
+    def test_sensor_names_contain_device_name(self) -> None:
         """All sensor names contain the device name."""
         ctx = MockContext(FULL_ATTRS, name="Computer Stekker")
         result = map_outlet(ctx, MockDeviceInfo())
         for entity in result[1:]:
+            assert isinstance(entity.name, str)
             assert "Computer Stekker" in entity.name
 
 
 class TestOutletDeviceTypes:
     @pytest.mark.unit
-    def test_outlet_key_registered(self):
+    def test_outlet_key_registered(self) -> None:
         assert "outlet" in DEVICE_TYPES
         assert DEVICE_TYPES["outlet"] is map_outlet
 
     @pytest.mark.unit
-    def test_only_one_key(self):
+    def test_only_one_key(self) -> None:
         assert len(DEVICE_TYPES) == 1

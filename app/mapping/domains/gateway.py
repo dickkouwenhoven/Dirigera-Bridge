@@ -59,13 +59,10 @@ Design notes:
 from __future__ import annotations
 
 import logging
-from typing import List
+
+from ha_mqtt_sdk import DeviceInfo, Entity, HADomain
 
 from ..device_registry import DeviceContext
-from ha_mqtt_sdk import HADomain
-from ha_mqtt_sdk import Entity
-from ha_mqtt_sdk import DeviceInfo
-
 from . import make_unique_id
 
 __all__ = [
@@ -80,7 +77,7 @@ _ATTR_BACKEND_CONNECTED = "backendConnected"
 _ATTR_OTA_STATUS = "otaStatus"
 _ATTR_OTA_STATE = "otaState"
 _ATTR_FIRMWARE_VERSION = "firmwareVersion"
-_ATTR_HOME_STATE = "homeState"
+_ATTR_HOME_STATE = "homestate"
 _ATTR_TIMEZONE = "timezone"
 _ATTR_NEXT_SUNRISE = "nextSunRise"
 _ATTR_NEXT_SUNSET = "nextSunSet"
@@ -91,7 +88,7 @@ _ATTR_IS_ON = "isOn"
 def map_gateway(
     context: DeviceContext,
     device_info: DeviceInfo,
-) -> List[Entity]:
+) -> list[Entity]:
     """
     Map a Dirigera gateway DeviceContext to a list of HA entities.
 
@@ -105,12 +102,12 @@ def map_gateway(
                                   entities under one device in HA.
 
     Returns:
-        List[Entity]: All HA entities for the gateway. Between 8 and
+        list[Entity]: All HA entities for the gateway. Between 8 and
                       10 entities depending on which optional attributes
                       are present in the discovery payload.
     """
 
-    entities: List[Entity] = []
+    entities: list[Entity] = []
     lid = context.logical_id
 
     logger.debug(

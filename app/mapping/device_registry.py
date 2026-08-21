@@ -60,7 +60,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from ..core.errors import DirigeraBridgeError, ErrorCode
 from ..dirigera.models import DirigeraDevice
@@ -152,15 +152,15 @@ class DeviceContext:
     relation_id: str
     device_type: str
     is_reachable: bool
-    attributes: Dict[str, Any]
-    capabilities: List[str]
+    attributes: dict[str, Any]
+    capabilities: list[str]
     device_name: str
-    room_name: Optional[str]
+    room_name: str | None
     model: str
     manufacturer: str
     serial_number: str
-    product_code: Optional[str]
-    firmware_version: Optional[str]
+    product_code: str | None
+    firmware_version: str | None
     is_grouped: bool = field(default=False)
 
     def __repr__(self) -> str:
@@ -179,8 +179,8 @@ class DeviceContext:
 
 
 def build_device_contexts(
-    devices: List[DirigeraDevice],
-) -> Tuple[List[DeviceContext], List[DeviceContext]]:
+    devices: list[DirigeraDevice],
+) -> tuple[list[DeviceContext], list[DeviceContext]]:
     """
     Transform a flat list of DirigeraDevice models into normalised
     DeviceContext objects grouped by physical device.
@@ -190,11 +190,11 @@ def build_device_contexts(
     a typical controllable device, but is still registered in HA).
 
     Args:
-        devices (List[DirigeraDevice]): Raw device list from
+        devices (list[DirigeraDevice]): Raw device list from
             rest_client.get_devices(). Must not be None.
 
     Returns:
-        Tuple[List[DeviceContext], List[DeviceContext]]:
+        Tuple[list[DeviceContext], list[DeviceContext]]:
             (regular_contexts, gateway_contexts)
 
             regular_contexts: All non-gateway devices as DeviceContext
@@ -215,8 +215,7 @@ def build_device_contexts(
     if not isinstance(devices, list):
         raise DirigeraBridgeError(
             ErrorCode.INTERNAL_INVALID_ARGUMENT,
-            f"build_device_contexts: devices must be a list, "
-            f"got {type(devices).__name__}",
+            f"build_device_contexts: devices must be a list, got {type(devices).__name__}",
         )
 
     logger.info(
@@ -225,7 +224,7 @@ def build_device_contexts(
     )
 
     # ── Group by physical_id ──────────────────────────────────────────────
-    groups: Dict[str, List[DirigeraDevice]] = {}
+    groups: dict[str, list[DirigeraDevice]] = {}
 
     for device in devices:
         physical_id = device.physical_id
@@ -240,8 +239,8 @@ def build_device_contexts(
     )
 
     # ── Build DeviceContext per logical device ────────────────────────────
-    regular_contexts: List[DeviceContext] = []
-    gateway_contexts: List[DeviceContext] = []
+    regular_contexts: list[DeviceContext] = []
+    gateway_contexts: list[DeviceContext] = []
     error_count = 0
 
     for physical_id, group in groups.items():
@@ -309,8 +308,7 @@ def build_device_contexts(
                 )
 
     logger.info(
-        "build_device_contexts: produced %d regular + %d gateway "
-        "context(s) (%d error(s))",
+        "build_device_contexts: produced %d regular + %d gateway context(s) (%d error(s))",
         len(regular_contexts),
         len(gateway_contexts),
         error_count,
@@ -322,7 +320,7 @@ def build_device_contexts(
 # ── Internal helpers ──────────────────────────────────────────────────────────
 
 
-def _elect_primary(group: List[DirigeraDevice]) -> DirigeraDevice:
+def _elect_primary(group: list[DirigeraDevice]) -> DirigeraDevice:
     """
     Elect the primary device from a physical device group.
 
@@ -333,7 +331,7 @@ def _elect_primary(group: List[DirigeraDevice]) -> DirigeraDevice:
     For single-device groups the only member is always the primary.
 
     Args:
-        group (List[DirigeraDevice]): Logical devices sharing a
+        group (list[DirigeraDevice]): Logical devices sharing a
                                       physical_id. Must not be empty.
 
     Returns:
@@ -382,8 +380,7 @@ def _elect_device_name(
     model = primary.attributes.model.strip()
     if model:
         logger.debug(
-            "_elect_device_name: customName empty for group "
-            "primary=%s — using model '%s'",
+            "_elect_device_name: customName empty for group primary=%s — using model '%s'",
             primary.id,
             model,
         )

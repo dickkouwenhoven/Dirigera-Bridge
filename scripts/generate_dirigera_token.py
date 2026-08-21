@@ -25,8 +25,8 @@ inside Docker:
 
 Run it directly with the project's existing venv:
     source .venv/bin/activate
-    python scripts/generate_dirigera_token.py
-    # or: python scripts/generate_dirigera_token.py --ip 192.168.1.50
+    Python scripts/generate_dirigera_token.py
+    # or: Python scripts/generate_dirigera_token.py --ip 192.168.1.50
 
 CONFIRMED vs inferred — this was checked against real source code
 (lpgera/dirigera, a maintained open-source TypeScript client with a
@@ -39,15 +39,15 @@ guessed:
              &response_type=code
              &code_challenge={challenge}
              &code_challenge_method={method}
-             → { "code": "..." }
+             → { "code": "..."}
         (wait for the physical Action button press)
         POST /oauth/token
              form: code={code}&name={hostname}
                    &grant_type=authorization_code
                    &code_verifier={verifier}
-             → { "access_token": "..." }
+             → { "access_token": "..."}
         - The token exchange is retried in a loop until the button
-          press happens or a ~60 second window elapses.
+          press happens or a ~60-second window elapses.
         - 'name' is the requesting device's hostname.
 
     ASSUMED (standard/highly-likely, but not independently verified
@@ -63,7 +63,7 @@ guessed:
           re-confirmed for the oauth endpoints specifically.
 
     If pairing fails against a real hub, these are the first two
-    things to double check.
+    things to double-check.
 """
 
 from __future__ import annotations
@@ -81,7 +81,6 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from pathlib import Path
-from typing import Optional, Tuple
 
 from dotenv import dotenv_values, set_key
 
@@ -114,7 +113,7 @@ def _build_ssl_context() -> ssl.SSLContext:
 # ── PKCE ───────────────────────────────────────────────────────────────────
 
 
-def _generate_pkce_pair() -> Tuple[str, str]:
+def _generate_pkce_pair() -> tuple[str, str]:
     """
     Generate a PKCE code_verifier and its S256 code_challenge, per
     RFC 7636 — the same mechanism the real lpgera/dirigera client
@@ -123,9 +122,7 @@ def _generate_pkce_pair() -> Tuple[str, str]:
     Returns:
         (code_verifier, code_challenge)
     """
-    verifier = (
-        base64.urlsafe_b64encode(secrets.token_bytes(64)).rstrip(b"=").decode("ascii")
-    )
+    verifier = base64.urlsafe_b64encode(secrets.token_bytes(64)).rstrip(b"=").decode("ascii")
     challenge_digest = hashlib.sha256(verifier.encode("ascii")).digest()
     challenge = base64.urlsafe_b64encode(challenge_digest).rstrip(b"=").decode("ascii")
     return verifier, challenge
@@ -164,8 +161,8 @@ def _request_authorization_code(
     with urllib.request.urlopen(req, context=ctx, timeout=10) as resp:
         data = json.loads(resp.read())
 
-    code = data.get("code")
-    if not code:
+    code = data.get("code") if isinstance(data, dict) else None
+    if not isinstance(code, str) or not code:
         raise RuntimeError(f"Hub did not return an authorization code: {data!r}")
     return code
 
@@ -176,6 +173,7 @@ def _exchange_code_for_token(
     code_verifier: str,
     ctx: ssl.SSLContext,
 ) -> str:
+    # noinspection GrazieStyle
     """
     Step 2: exchange the authorization code for an access token.
 
@@ -183,7 +181,7 @@ def _exchange_code_for_token(
     pressed on the hub — until then the hub rejects the exchange, so
     this retries on a short interval for up to
     _BUTTON_PRESS_WINDOW_SECONDS, matching the real client library's
-    own retry behaviour for this step.
+    own retry behavior for this step.
 
     Raises:
         TimeoutError: if no button press is detected in time.
@@ -211,8 +209,8 @@ def _exchange_code_for_token(
         try:
             with urllib.request.urlopen(req, context=ctx, timeout=10) as resp:
                 data = json.loads(resp.read())
-            token = data.get("access_token")
-            if token:
+            token = data.get("access_token") if isinstance(data, dict) else None
+            if isinstance(token, str) and token:
                 return token
         except urllib.error.HTTPError as exc:
             # Expected while waiting for the button press — the hub
@@ -232,7 +230,7 @@ def _exchange_code_for_token(
 # ── .env handling ────────────────────────────────────────────────────────────
 
 
-def _read_existing_dirigera_ip() -> Optional[str]:
+def _read_existing_dirigera_ip() -> str | None:
     """Look for an existing DIRIGERA_IP in .env so the user isn't asked
     to retype something already configured."""
     if not _ENV_PATH.exists():
@@ -296,17 +294,10 @@ def main() -> int:
     print("Pairing successful.")
     print(f"Access token: {token}")
     print()
-    print(
-        "Treat this token as a secret — never share it, log it, or "
-        "commit it to version control."
-    )
+    print("Treat this token as a secret — never share it, log it, or commit it to version control.")
     print()
 
-    answer = (
-        input(f"Save this token to {_ENV_PATH} as DIRIGERA_TOKEN? [y/N] ")
-        .strip()
-        .lower()
-    )
+    answer = input(f"Save this token to {_ENV_PATH} as DIRIGERA_TOKEN? [y/N] ").strip().lower()
     if answer == "y":
         _save_token_to_env(token)
         print("Saved.")

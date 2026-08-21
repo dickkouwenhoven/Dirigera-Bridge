@@ -57,13 +57,10 @@ Design notes:
 from __future__ import annotations
 
 import logging
-from typing import List
+
+from ha_mqtt_sdk import DeviceInfo, Entity, HADomain
 
 from ..device_registry import DeviceContext
-from ha_mqtt_sdk import HADomain
-from ha_mqtt_sdk import Entity
-from ha_mqtt_sdk import DeviceInfo
-
 from . import make_unique_id
 
 __all__ = [
@@ -77,7 +74,7 @@ logger = logging.getLogger(__name__)
 def map_switch(
     context: DeviceContext,
     device_info: DeviceInfo,
-) -> List[Entity]:
+) -> list[Entity]:
     """
     Map a Dirigera switch DeviceContext to a list containing one HA
     switch entity.
@@ -89,7 +86,7 @@ def map_switch(
                                   grouping in HA.
 
     Returns:
-        List[Entity]: A single-element list containing the switch entity.
+        list[Entity]: A single-element list containing the switch entity.
     """
 
     lid = context.logical_id

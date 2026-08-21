@@ -218,8 +218,7 @@ The mapping layer is plugin-based. To add support for a new Dirigera device type
 1. Create a new file in `app/mapping/domains/`, e.g. `my_device.py`
 2. Implement a mapper function:
    ```python
-   def map_my_device(context: DeviceContext, device_info: DeviceInfo) -> List[Entity]:
-       ...
+   def map_my_device(context: DeviceContext, device_info: DeviceInfo) -> List[Entity]: ...
    ```
 3. Add a `DEVICE_TYPES` dict at the bottom:
    ```python
@@ -241,12 +240,12 @@ All settings are loaded from `.env` at startup. Invalid or missing required valu
 
 | Variable                  | Required | Default           | Description                                 |
 |---------------------------|----------|-------------------|---------------------------------------------|
-| `DIRIGERA_IP`             | ✓        | —                 | IP address of the Dirigera hub              |
-| `DIRIGERA_TOKEN`          | ✓        | —                 | Hub access token (secret)                   |
-| `MQTT_HOST`               | ✓        | —                 | MQTT broker hostname                        |
+| `DIRIGERA_IP`             | ✓       | —                 | IP address of the Dirigera hub              |
+| `DIRIGERA_TOKEN`          | ✓       | —                 | Hub access token (secret)                   |
+| `MQTT_HOST`               | ✓       | —                 | MQTT broker hostname                        |
 | `MQTT_PORT`               |          | `1883`            | MQTT broker port                            |
-| `MQTT_USER`               | ✓        | —                 | MQTT username                               |
-| `MQTT_PASSWORD`           | ✓        | —                 | MQTT password (secret)                      |
+| `MQTT_USER`               | ✓       | —                 | MQTT username                               |
+| `MQTT_PASSWORD`           | ✓       | —                 | MQTT password (secret)                      |
 | `MQTT_CLIENT_ID`          |          | `dirigera-bridge` | MQTT client identifier                      |
 | `MQTT_KEEPALIVE`          |          | `60`              | MQTT keepalive interval (seconds)           |
 | `MQTT_BASE_TOPIC`         |          | `dirigera`        | Base topic prefix for state/command topics  |

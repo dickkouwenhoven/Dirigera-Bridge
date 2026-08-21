@@ -64,13 +64,10 @@ Design notes:
 from __future__ import annotations
 
 import logging
-from typing import List
+
+from ha_mqtt_sdk import DeviceInfo, Entity, HADomain
 
 from ..device_registry import DeviceContext
-from ha_mqtt_sdk import HADomain
-from ha_mqtt_sdk import Entity
-from ha_mqtt_sdk import DeviceInfo
-
 from . import make_unique_id
 
 __all__ = [
@@ -90,7 +87,7 @@ _ATTR_VOC_INDEX = "vocIndex"
 def map_environment_sensor(
     context: DeviceContext,
     device_info: DeviceInfo,
-) -> List[Entity]:
+) -> list[Entity]:
     """
     Map a Dirigera environmentSensor DeviceContext to HA entities.
 
@@ -106,7 +103,7 @@ def map_environment_sensor(
                                   grouping in HA.
 
     Returns:
-        List[Entity]: Between 0 and 4 sensor entities depending on
+        list[Entity]: Between 0 and 4 sensor entities depending on
                       which attributes are present. For the current
                       VINDSTYRKA (E2112) all four are always produced.
     """
@@ -121,7 +118,7 @@ def map_environment_sensor(
         lid,
     )
 
-    entities: List[Entity] = []
+    entities: list[Entity] = []
 
     # ── Temperature ───────────────────────────────────────────────────────
     if attrs.get(_ATTR_TEMPERATURE) is not None:

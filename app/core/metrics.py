@@ -50,8 +50,7 @@ Not responsible for:
 from __future__ import annotations
 
 import logging
-from enum import Enum, unique
-from typing import Dict
+from enum import StrEnum, unique
 
 from .errors import DirigeraBridgeError, ErrorCode
 
@@ -67,7 +66,7 @@ logger = logging.getLogger(__name__)
 
 
 @unique
-class MetricName(str, Enum):
+class MetricName(StrEnum):
     """
     All metric counter names used in the application.
 
@@ -141,7 +140,7 @@ class MetricsStore:
 
     def __init__(self) -> None:
         # Initialize all known counters at zero
-        self._counters: Dict[MetricName, int] = {metric: 0 for metric in MetricName}
+        self._counters: dict[MetricName, int] = {metric: 0 for metric in MetricName}
         logger.debug(
             "MetricsStore initialised with %d counters",
             len(self._counters),
@@ -229,8 +228,7 @@ class MetricsStore:
             if not isinstance(metric, MetricName):
                 raise DirigeraBridgeError(
                     ErrorCode.INTERNAL_INVALID_ARGUMENT,
-                    f"reset: metric must be MetricName or None, "
-                    f"got {type(metric).__name__}",
+                    f"reset: metric must be MetricName or None, got {type(metric).__name__}",
                 )
             self._counters[metric] = 0
             logger.debug("Metric '%s' reset to 0", metric.value)
@@ -239,7 +237,7 @@ class MetricsStore:
                 self._counters[m] = 0
             logger.debug("All metrics reset to 0")
 
-    def snapshot(self, include_zeros: bool = False) -> Dict[str, int]:
+    def snapshot(self, include_zeros: bool = False) -> dict[str, int]:
         """
         Return a sorted, immutable snapshot of all counter values.
 
@@ -255,7 +253,7 @@ class MetricsStore:
                         short during normal operation.
 
         Returns:
-            Dict[str, int]: Sorted snapshot of counter values.
+            dict[str, int]: Sorted snapshot of counter values.
         """
 
         items = (
@@ -305,7 +303,5 @@ class MetricsStore:
         """
 
         return sum(
-            self._counters[metric]
-            for metric in MetricName
-            if metric.value.startswith("error_")
+            self._counters[metric] for metric in MetricName if metric.value.startswith("error_")
         )

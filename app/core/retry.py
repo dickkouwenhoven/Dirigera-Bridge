@@ -55,8 +55,8 @@ from __future__ import annotations
 import asyncio
 import logging
 import random
+from _collections_abc import AsyncIterator
 from dataclasses import dataclass
-from typing import AsyncIterator, Optional
 
 from .errors import DirigeraBridgeError, ErrorCode
 
@@ -109,7 +109,7 @@ class RetryConfig:
     max_delay: float = 60.0
     multiplier: float = 2.0
     jitter_max: float = 1.0
-    max_attempts: Optional[int] = None
+    max_attempts: int | None = None
 
     def __post_init__(self) -> None:
         """Validate all fields immediately after construction."""
@@ -132,10 +132,7 @@ class RetryConfig:
                 f"RetryConfig.initial_delay must be > 0, got {self.initial_delay!r}",
             )
 
-        if (
-            not isinstance(self.max_delay, (int, float))
-            or self.max_delay < self.initial_delay
-        ):
+        if not isinstance(self.max_delay, (int, float)) or self.max_delay < self.initial_delay:
             raise DirigeraBridgeError(
                 ErrorCode.INTERNAL_INVALID_ARGUMENT,
                 f"RetryConfig.max_delay must be >= initial_delay "
@@ -154,13 +151,14 @@ class RetryConfig:
                 f"RetryConfig.jitter_max must be >= 0, got {self.jitter_max!r}",
             )
 
-        if self.max_attempts is not None:
-            if not isinstance(self.max_attempts, int) or self.max_attempts < 1:
-                raise DirigeraBridgeError(
-                    ErrorCode.INTERNAL_INVALID_ARGUMENT,
-                    f"RetryConfig.max_attempts must be a positive int "
-                    f"or None, got {self.max_attempts!r}",
-                )
+        if self.max_attempts is not None and (
+            not isinstance(self.max_attempts, int) or self.max_attempts < 1
+        ):
+            raise DirigeraBridgeError(
+                ErrorCode.INTERNAL_INVALID_ARGUMENT,
+                f"RetryConfig.max_attempts must be a positive int "
+                f"or None, got {self.max_attempts!r}",
+            )
 
 
 # ── Retry exhausted error ─────────────────────────────────────────────────────
@@ -196,7 +194,7 @@ def calculate_delay(
     attempt: int,
     config: RetryConfig,
     *,
-    _random: Optional[random.Random] = None,
+    _random: random.Random | None = None,
 ) -> float:
     """
     Calculate the delay for a given attempt number using exponential
@@ -255,7 +253,7 @@ def calculate_delay(
 async def retry_with_backoff(
     config: RetryConfig,
     *,
-    stop_event: Optional[asyncio.Event] = None,
+    stop_event: asyncio.Event | None = None,
 ) -> AsyncIterator[int]:
     """
     Async generator that yields attempt numbers and sleeps between
@@ -310,8 +308,7 @@ async def retry_with_backoff(
     if not isinstance(config, RetryConfig):
         raise DirigeraBridgeError(
             ErrorCode.INTERNAL_INVALID_ARGUMENT,
-            f"retry_with_backoff: config must be RetryConfig, "
-            f"got {type(config).__name__}",
+            f"retry_with_backoff: config must be RetryConfig, got {type(config).__name__}",
         )
 
     if stop_event is not None and not isinstance(stop_event, asyncio.Event):
@@ -321,7 +318,7 @@ async def retry_with_backoff(
         )
 
     attempt = 0
-    last_error: Optional[Exception] = None
+    last_error: Exception | None = None
 
     # ── Retry loop ────────────────────────────────────────────────────────
     while True:
@@ -381,7 +378,7 @@ async def retry_with_backoff(
                     attempt,
                 )
                 return
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 pass  # Normal case: sleep expired, continue to next attempt
         else:
             await asyncio.sleep(delay)

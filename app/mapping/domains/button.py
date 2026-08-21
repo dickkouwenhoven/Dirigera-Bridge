@@ -1,3 +1,4 @@
+# noinspection SpellCheckingInspection
 """
 button.py
 
@@ -66,14 +67,11 @@ Design notes:
 from __future__ import annotations
 
 import logging
-from typing import List
+
+from ha_mqtt_sdk import DeviceInfo, Entity, HADomain
 
 from ..device_registry import DeviceContext
-from ha_mqtt_sdk import HADomain
-from ha_mqtt_sdk import Entity
-from ha_mqtt_sdk import DeviceInfo
-
-from . import make_unique_id, make_battery_entity
+from . import make_battery_entity, make_unique_id
 
 __all__ = [
     "DEVICE_TYPES",
@@ -97,7 +95,7 @@ _BUTTON_EVENT_TYPES = [
 def map_button(
     context: DeviceContext,
     device_info: DeviceInfo,
-) -> List[Entity]:
+) -> list[Entity]:
     """
     Map a Dirigera button / shortcutController DeviceContext to HA
     entities.
@@ -113,7 +111,7 @@ def map_button(
                                   grouping in HA.
 
     Returns:
-        List[Entity]: 1 entity (event only) or 2 entities
+        list[Entity]: 1 entity (event only) or 2 entities
                       (event + battery).
     """
 
@@ -126,7 +124,7 @@ def map_button(
         lid,
     )
 
-    entities: List[Entity] = [
+    entities: list[Entity] = [
         _make_event_entity(
             logical_id=lid,
             name=name,
@@ -138,7 +136,7 @@ def map_button(
 
     # ── Secondary: battery sensor (conditional) ───────────────────────────
     battery_pct = context.attributes.get(_ATTR_BATTERY_PERCENTAGE)
-    if battery_pct is not None:
+    if isinstance(battery_pct, (int, float)):
         entities.append(
             make_battery_entity(
                 logical_id=lid,

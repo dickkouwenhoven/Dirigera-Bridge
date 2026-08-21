@@ -13,30 +13,32 @@ Fixtures are organized into four groups:
 
 from __future__ import annotations
 
-from typing import Any, Dict
+from _collections_abc import Generator
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from _pytest.monkeypatch import MonkeyPatch
 
+from app.config import Settings
 from app.core.discovery_cache import DiscoveryCache
 from app.core.event_bus import AsyncEventBus
 from app.core.lifecycle import ServiceLifecycle
 from app.core.metrics import MetricsStore
 from app.core.state_cache import StateCache
 
-
 # ── Settings fixture ──────────────────────────────────────────────────────────
 
 
 @pytest.fixture(autouse=True)
-def isolate_dotenv(monkeypatch) -> None:
+def isolate_dotenv(monkeypatch: MonkeyPatch) -> None:
     """
     Prevent load_settings() from reading any real .env file on disk.
 
     Without this, load_dotenv() backfills whatever a test's
     monkeypatch.delenv() just removed from os.environ straight from
     the developer's real .env file — silently defeating tests for
-    "missing required field" behaviour, and leaking real production
+    "missing required field" behavior, and leaking real production
     values (Dirigera token, IP, etc.) into "populated" assertions.
     Tests must get 100% of their environment from monkeypatch, never
     from whatever happens to exist on disk.
@@ -46,7 +48,7 @@ def isolate_dotenv(monkeypatch) -> None:
 
 
 @pytest.fixture
-def valid_env(monkeypatch) -> None:
+def valid_env(monkeypatch: MonkeyPatch) -> None:
     """
     Set all required and optional environment variables to valid test values.
 
@@ -77,7 +79,7 @@ def valid_env(monkeypatch) -> None:
 
 
 @pytest.fixture
-def settings(valid_env):
+def settings(valid_env: None) -> Settings:
     """
     Return a fully validated Settings object with test values.
 
@@ -91,7 +93,7 @@ def settings(valid_env):
 
 
 @pytest.fixture(autouse=True)
-def reset_settings_singelton():
+def reset_settings_singelton() -> Generator[None, Any, None]:
     import app.config as cfg
 
     cfg._settings = None
@@ -191,7 +193,7 @@ def mock_rest_client() -> MagicMock:
 
 
 @pytest.fixture(scope="session")
-def light_raw() -> Dict[str, Any]:
+def light_raw() -> dict[str, Any]:
     """Real TRADFRI GU10 CWS light payload."""
     return {
         "id": "f47bd1c3-3e57-47c3-b762-1e27bd8d791c_1",
@@ -242,7 +244,7 @@ def light_raw() -> Dict[str, Any]:
 
 
 @pytest.fixture(scope="session")
-def vallhorn_motion_raw() -> Dict[str, Any]:
+def vallhorn_motion_raw() -> dict[str, Any]:
     """Real VALLHORN motionSensor (_1 sibling) payload."""
     return {
         "id": "fff75d00-607c-4f23-a0e7-3dbed0e18b12_1",
@@ -277,7 +279,7 @@ def vallhorn_motion_raw() -> Dict[str, Any]:
 
 
 @pytest.fixture(scope="session")
-def vallhorn_light_raw() -> Dict[str, Any]:
+def vallhorn_light_raw() -> dict[str, Any]:
     """Real VALLHORN lightSensor (_3 sibling) payload."""
     return {
         "id": "fff75d00-607c-4f23-a0e7-3dbed0e18b12_3",
@@ -303,7 +305,7 @@ def vallhorn_light_raw() -> Dict[str, Any]:
 
 
 @pytest.fixture(scope="session")
-def vindstyrka_raw() -> Dict[str, Any]:
+def vindstyrka_raw() -> dict[str, Any]:
     """Real VINDSTYRKA environmentSensor payload."""
     return {
         "id": "85fe4485-7c1e-4e86-9eb1-f1aa856a1e66_1",
@@ -339,7 +341,7 @@ def vindstyrka_raw() -> Dict[str, Any]:
 
 
 @pytest.fixture(scope="session")
-def outlet_raw() -> Dict[str, Any]:
+def outlet_raw() -> dict[str, Any]:
     """Real INSPELNING smart plug payload."""
     return {
         "id": "0acd598b-6bcb-46ba-8aa0-0fd035b678f6_1",
@@ -378,7 +380,7 @@ def outlet_raw() -> Dict[str, Any]:
 
 
 @pytest.fixture(scope="session")
-def gateway_raw() -> Dict[str, Any]:
+def gateway_raw() -> dict[str, Any]:
     """Real Dirigera gateway payload."""
     return {
         "id": "9d3b17d8-73c0-4f33-9637-e8ee2437acd3_1",
@@ -417,7 +419,7 @@ def gateway_raw() -> Dict[str, Any]:
 
 
 @pytest.fixture(scope="session")
-def remote_raw() -> Dict[str, Any]:
+def remote_raw() -> dict[str, Any]:
     """Real Remote Control N2 (E2001) payload."""
     return {
         "id": "315cebe3-06b1-4fe0-95c5-e8a8e086497c_1",
@@ -453,7 +455,7 @@ def remote_raw() -> Dict[str, Any]:
 
 
 @pytest.fixture(scope="session")
-def water_sensor_raw() -> Dict[str, Any]:
+def water_sensor_raw() -> dict[str, Any]:
     """Real BADRING Water Leakage Sensor payload."""
     return {
         "id": "967f65f3-81f2-4b1b-94c9-98fed7effe7c_1",

@@ -40,7 +40,7 @@ pydantic>=2.0,<3.0
 
 # Loads .env file into os.environ at startup
 # Used by: app/config.py
-python-dotenv>=1.0,<2.0
+python-dotenv>=1.2.3,<2.0
 
 # Pytest
 pytest>=8.0,<10.0

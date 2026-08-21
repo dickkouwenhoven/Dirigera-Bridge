@@ -114,7 +114,7 @@ skip_covered = false
 [tool.mypy]
 python_version = "3.13"
 warn_unused_ignores = true
-mypy_path = "app"
+# mypy_path = "app"
 no_implicit_optional = true
 check_untyped_defs = true
 strict = true

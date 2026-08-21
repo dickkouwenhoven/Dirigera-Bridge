@@ -71,7 +71,6 @@ from __future__ import annotations
 import logging
 import os
 from dataclasses import dataclass
-from typing import Optional
 
 from dotenv import load_dotenv
 
@@ -86,7 +85,7 @@ __all__ = [
 logger = logging.getLogger(__name__)
 
 # Module-level singleton — populated by load_settings()
-_settings: Optional["Settings"] = None
+_settings: Settings | None = None
 
 # Valid MQTT QoS levels
 _VALID_QOS_LEVELS = {0, 1, 2}
@@ -241,7 +240,7 @@ class Settings:
 # ── Public API ────────────────────────────────────────────────────────────────
 
 
-def load_settings(env_file: Optional[str] = None) -> Settings:
+def load_settings(env_file: str | None = None) -> Settings:
     """
     Load, validate, and cache the application settings.
 
@@ -280,10 +279,7 @@ def load_settings(env_file: Optional[str] = None) -> Settings:
     # in values that aren't already set. Using override=True here
     # previously caused a real .env file in the project root to
     # silently clobber test-injected environment variables.
-    if env_file:
-        loaded = load_dotenv(env_file, override=False)
-    else:
-        loaded = load_dotenv(override=False)
+    loaded = load_dotenv(env_file, override=False) if env_file else load_dotenv(override=False)
 
     logger.debug(
         "dotenv loaded: %s (env_file=%r)",
@@ -313,12 +309,8 @@ def load_settings(env_file: Optional[str] = None) -> Settings:
     metrics_interval = _optional_int("METRICS_INTERVAL", default=300, min_val=10)
     ws_ping_interval = _optional_int("WS_PING_INTERVAL", default=30, min_val=5)
     ws_ping_timeout = _optional_int("WS_PING_TIMEOUT", default=10, min_val=1)
-    reconnect_delay_initial = _optional_float(
-        "RECONNECT_DELAY_INITIAL", default=1.0, min_val=0.1
-    )
-    reconnect_delay_max = _optional_float(
-        "RECONNECT_DELAY_MAX", default=60.0, min_val=1.0
-    )
+    reconnect_delay_initial = _optional_float("RECONNECT_DELAY_INITIAL", default=1.0, min_val=0.1)
+    reconnect_delay_max = _optional_float("RECONNECT_DELAY_MAX", default=60.0, min_val=1.0)
 
     # ── Cross-field validation ────────────────────────────────────────────
     if reconnect_delay_max < reconnect_delay_initial:
@@ -331,8 +323,7 @@ def load_settings(env_file: Optional[str] = None) -> Settings:
     if ws_ping_timeout >= ws_ping_interval:
         raise DirigeraBridgeError(
             ErrorCode.CONFIG_INVALID_VALUE,
-            f"WS_PING_TIMEOUT ({ws_ping_timeout}) must be < "
-            f"WS_PING_INTERVAL ({ws_ping_interval})",
+            f"WS_PING_TIMEOUT ({ws_ping_timeout}) must be < WS_PING_INTERVAL ({ws_ping_interval})",
         )
 
     if mqtt_keepalive <= ws_ping_timeout:
@@ -433,7 +424,7 @@ def _optional_int(
     key: str,
     default: int,
     min_val: int,
-    max_val: Optional[int] = None,
+    max_val: int | None = None,
 ) -> int:
     """
     Read an optional environment variable as an integer.
@@ -453,11 +444,11 @@ def _optional_int(
 
     try:
         value = int(raw)
-    except ValueError:
+    except ValueError as exc:
         raise DirigeraBridgeError(
             ErrorCode.CONFIG_INVALID_VALUE,
             f"Environment variable '{key}' must be an integer, got {raw!r}",
-        )
+        ) from exc
 
     if value < min_val:
         raise DirigeraBridgeError(
@@ -496,11 +487,11 @@ def _optional_float(
 
     try:
         value = float(raw)
-    except ValueError:
+    except ValueError as exc:
         raise DirigeraBridgeError(
             ErrorCode.CONFIG_INVALID_VALUE,
             f"Environment variable '{key}' must be a number, got {raw!r}",
-        )
+        ) from exc
 
     if value < min_val:
         raise DirigeraBridgeError(
@@ -532,8 +523,7 @@ def _optional_log_level(key: str, default: str) -> str:
     if upper not in _VALID_LOG_LEVELS:
         raise DirigeraBridgeError(
             ErrorCode.CONFIG_INVALID_VALUE,
-            f"Environment variable '{key}' must be one of "
-            f"{sorted(_VALID_LOG_LEVELS)}, got {raw!r}",
+            f"Environment variable '{key}' must be one of {sorted(_VALID_LOG_LEVELS)}, got {raw!r}",
         )
 
     return upper

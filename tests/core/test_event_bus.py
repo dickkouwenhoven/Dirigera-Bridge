@@ -15,32 +15,30 @@ Covers:
 """
 
 import asyncio
+from typing import Any
 
 import pytest
 
 from app.core.errors import DirigeraBridgeError, ErrorCode
-from app.core.event_bus import DirigeraEvent, EventType
-
-
-# ── EventType tests ───────────────────────────────────────────────────────────
+from app.core.event_bus import AsyncEventBus, DirigeraEvent, EventType
 
 
 class TestEventType:
     @pytest.mark.unit
-    def test_all_values_are_strings(self):
+    def test_all_values_are_strings(self) -> None:
         """Every EventType value is a non-empty string."""
         for et in EventType:
             assert isinstance(et.value, str)
             assert len(et.value) > 0
 
     @pytest.mark.unit
-    def test_all_values_are_unique(self):
+    def test_all_values_are_unique(self) -> None:
         """No two EventTypes share the same string value."""
         values = [et.value for et in EventType]
         assert len(values) == len(set(values))
 
     @pytest.mark.unit
-    def test_required_event_types_exist(self):
+    def test_required_event_types_exist(self) -> None:
         """All event types used by the application exist."""
         required = [
             EventType.STATE_CHANGED,
@@ -63,7 +61,7 @@ class TestEventType:
 
 class TestDirigeraEvent:
     @pytest.mark.unit
-    def test_basic_construction(self):
+    def test_basic_construction(self) -> None:
         """Can construct a DirigeraEvent with required fields."""
         event = DirigeraEvent(
             event_type=EventType.STATE_CHANGED,
@@ -75,7 +73,7 @@ class TestDirigeraEvent:
         assert event.relation_id == ""
 
     @pytest.mark.unit
-    def test_full_construction(self):
+    def test_full_construction(self) -> None:
         """Can construct with all fields."""
         event = DirigeraEvent(
             event_type=EventType.STATE_CHANGED,
@@ -89,34 +87,34 @@ class TestDirigeraEvent:
 
     # noinspection PyTypeChecker
     @pytest.mark.unit
-    def test_invalid_event_type_raises(self):
+    def test_invalid_event_type_raises(self) -> None:
         """Non-EventType event_type raises DirigeraBridgeError."""
         with pytest.raises(DirigeraBridgeError) as exc_info:
-            DirigeraEvent(event_type="bad_type", logical_id="abc_1")
+            DirigeraEvent(event_type="bad_type", logical_id="abc_1")  # type: ignore[arg-type]
         assert exc_info.value.code == ErrorCode.INTERNAL_INVALID_ARGUMENT
 
     # noinspection PyTypeChecker
     @pytest.mark.unit
-    def test_invalid_logical_id_raises(self):
+    def test_invalid_logical_id_raises(self) -> None:
         """Non-string logical_id raises DirigeraBridgeError."""
         with pytest.raises(DirigeraBridgeError) as exc_info:
-            DirigeraEvent(event_type=EventType.STATE_CHANGED, logical_id=123)
+            DirigeraEvent(event_type=EventType.STATE_CHANGED, logical_id=123)  # type: ignore[arg-type]
         assert exc_info.value.code == ErrorCode.INTERNAL_INVALID_ARGUMENT
 
     # noinspection PyTypeChecker
     @pytest.mark.unit
-    def test_invalid_data_raises(self):
+    def test_invalid_data_raises(self) -> None:
         """Non-dict data raises DirigeraBridgeError."""
         with pytest.raises(DirigeraBridgeError) as exc_info:
             DirigeraEvent(
                 event_type=EventType.STATE_CHANGED,
                 logical_id="abc_1",
-                data="not_a_dict",
+                data="not_a_dict",  # type: ignore[arg-type]
             )
         assert exc_info.value.code == ErrorCode.INTERNAL_INVALID_ARGUMENT
 
     @pytest.mark.unit
-    def test_empty_logical_id_is_valid(self):
+    def test_empty_logical_id_is_valid(self) -> None:
         """Empty logical_id is valid — used for connection events."""
         event = DirigeraEvent(
             event_type=EventType.DIRIGERA_CONNECTED,
@@ -125,7 +123,7 @@ class TestDirigeraEvent:
         assert event.logical_id == ""
 
     @pytest.mark.unit
-    def test_data_defaults_to_empty_dict(self):
+    def test_data_defaults_to_empty_dict(self) -> None:
         """data defaults to an empty dict, not None."""
         event = DirigeraEvent(
             event_type=EventType.MQTT_CONNECTED,
@@ -134,28 +132,41 @@ class TestDirigeraEvent:
         assert event.data == {}
         assert isinstance(event.data, dict)
 
+    @pytest.mark.unit
+    def test_dirigera_event_rejects_non_string_relation_id(self) -> None:
+        with pytest.raises(
+            DirigeraBridgeError,
+            match=r"DirigeraEvent\.relation_id must be str, got int",
+        ):
+            DirigeraEvent(
+                event_type=EventType.DIRIGERA_CONNECTED,
+                logical_id="logical-123",
+                data={},
+                relation_id=123,  # type: ignore[arg-type]
+            )
+
 
 # ── AsyncEventBus subscribe / unsubscribe ─────────────────────────────────────
 
 
 class TestAsyncEventBusSubscription:
     @pytest.mark.unit
-    def test_subscribe_registers_handler(self, event_bus):
+    def test_subscribe_registers_handler(self, event_bus: AsyncEventBus) -> None:
         """subscribe() increments subscriber_count."""
 
-        # noinspection PyUnusedLocal
-        async def handler(event):
+        # noinspection unused-parameter
+        async def handler(event: DirigeraEvent) -> None:
             pass
 
         event_bus.subscribe(EventType.STATE_CHANGED, handler)
         assert event_bus.subscriber_count(EventType.STATE_CHANGED) == 1
 
     @pytest.mark.unit
-    def test_subscribe_is_idempotent(self, event_bus):
+    def test_subscribe_is_idempotent(self, event_bus: AsyncEventBus) -> None:
         """Subscribing the same handler twice does not duplicate it."""
 
-        # noinspection PyUnusedLocal
-        async def handler(event):
+        # noinspection unused-parameter
+        async def handler(event: DirigeraEvent) -> None:
             pass
 
         event_bus.subscribe(EventType.STATE_CHANGED, handler)
@@ -163,15 +174,15 @@ class TestAsyncEventBusSubscription:
         assert event_bus.subscriber_count(EventType.STATE_CHANGED) == 1
 
     @pytest.mark.unit
-    def test_subscribe_multiple_handlers(self, event_bus):
+    def test_subscribe_multiple_handlers(self, event_bus: AsyncEventBus) -> None:
         """Multiple distinct handlers can be subscribed to the same type."""
 
-        # noinspection PyUnusedLocal
-        async def h1(event):
+        # noinspection unused-parameter
+        async def h1(event: DirigeraEvent) -> None:
             pass
 
-        # noinspection PyUnusedLocal
-        async def h2(event):
+        # noinspection unused-parameter
+        async def h2(event: DirigeraEvent) -> None:
             pass
 
         event_bus.subscribe(EventType.STATE_CHANGED, h1)
@@ -179,11 +190,11 @@ class TestAsyncEventBusSubscription:
         assert event_bus.subscriber_count(EventType.STATE_CHANGED) == 2
 
     @pytest.mark.unit
-    def test_subscribe_different_event_types(self, event_bus):
+    def test_subscribe_different_event_types(self, event_bus: AsyncEventBus) -> None:
         """Handlers for different event types are independent."""
 
-        # noinspection PyUnusedLocal
-        async def handler(event):
+        # noinspection unused-parameter
+        async def handler(event: DirigeraEvent) -> None:
             pass
 
         event_bus.subscribe(EventType.STATE_CHANGED, handler)
@@ -192,11 +203,11 @@ class TestAsyncEventBusSubscription:
         assert event_bus.subscriber_count(EventType.DEVICE_DISCOVERED) == 1
 
     @pytest.mark.unit
-    def test_unsubscribe_removes_handler(self, event_bus):
+    def test_unsubscribe_removes_handler(self, event_bus: AsyncEventBus) -> None:
         """unsubscribe() removes a previously registered handler."""
 
-        # noinspection PyUnusedLocal
-        async def handler(event):
+        # noinspection unused-parameter
+        async def handler(event: DirigeraEvent) -> None:
             pass
 
         event_bus.subscribe(EventType.STATE_CHANGED, handler)
@@ -204,11 +215,11 @@ class TestAsyncEventBusSubscription:
         assert event_bus.subscriber_count(EventType.STATE_CHANGED) == 0
 
     @pytest.mark.unit
-    def test_unsubscribe_unknown_handler_is_noop(self, event_bus):
+    def test_unsubscribe_unknown_handler_is_noop(self, event_bus: AsyncEventBus) -> None:
         """Unsubscribing an unregistered handler does not raise."""
 
-        # noinspection PyUnusedLocal
-        async def handler(event):
+        # noinspection unused-parameter
+        async def handler(event: DirigeraEvent) -> None:
             pass
 
         event_bus.unsubscribe(EventType.STATE_CHANGED, handler)  # no-op
@@ -216,24 +227,37 @@ class TestAsyncEventBusSubscription:
 
     # noinspection PyTypeChecker
     @pytest.mark.unit
-    def test_subscribe_invalid_event_type_raises(self, event_bus):
+    def test_subscribe_invalid_event_type_raises(self, event_bus: AsyncEventBus) -> None:
         """subscribe() raises for invalid event_type."""
 
-        # noinspection PyUnusedLocal
-        async def handler(event):
+        # noinspection unused-parameter
+        async def handler(event: DirigeraEvent) -> None:
             pass
 
         with pytest.raises(DirigeraBridgeError) as exc_info:
-            event_bus.subscribe("not_an_event_type", handler)
+            event_bus.subscribe("not_an_event_type", handler)  # type: ignore[arg-type]
         assert exc_info.value.code == ErrorCode.INTERNAL_INVALID_ARGUMENT
 
     # noinspection PyTypeChecker
     @pytest.mark.unit
-    def test_subscribe_non_callable_raises(self, event_bus):
+    def test_subscribe_non_callable_raises(self, event_bus: AsyncEventBus) -> None:
         """subscribe() raises if handler is not callable."""
         with pytest.raises(DirigeraBridgeError) as exc_info:
-            event_bus.subscribe(EventType.STATE_CHANGED, "not_callable")
+            event_bus.subscribe(EventType.STATE_CHANGED, "not_callable")  # type: ignore[arg-type]
         assert exc_info.value.code == ErrorCode.INTERNAL_INVALID_ARGUMENT
+
+    @pytest.mark.unit
+    def test_unsubscribe_rejects_invalid_event_type(self, event_bus: AsyncEventBus) -> None:
+
+        # noinspection unused-parameter
+        async def handler(event: DirigeraEvent) -> None:
+            pass
+
+        with pytest.raises(
+            DirigeraBridgeError,
+            match=r"unsubscribe: event_type must be EventType, got str",
+        ):
+            event_bus.unsubscribe("invalid-event-type", handler)  # type: ignore[arg-type]
 
 
 # ── AsyncEventBus publish ─────────────────────────────────────────────────────
@@ -241,13 +265,13 @@ class TestAsyncEventBusSubscription:
 
 class TestAsyncEventBusPublish:
     @pytest.mark.unit
-    async def test_publish_calls_handler(self, event_bus):
+    async def test_publish_calls_handler(self, event_bus: AsyncEventBus) -> None:
         """publish() calls the registered handler."""
         received = []
 
-        # noinspection PyShadowingNames
-        async def handler(event):
-            received.append(event)
+        # noinspection unused-parameter
+        async def handler(received_event: DirigeraEvent) -> None:
+            received.append(received_event)
 
         event_bus.subscribe(EventType.STATE_CHANGED, handler)
         event = DirigeraEvent(EventType.STATE_CHANGED, "abc_1")
@@ -257,20 +281,20 @@ class TestAsyncEventBusPublish:
         assert received[0].logical_id == "abc_1"
 
     @pytest.mark.unit
-    async def test_publish_calls_all_handlers(self, event_bus):
+    async def test_publish_calls_all_handlers(self, event_bus: AsyncEventBus) -> None:
         """publish() calls all registered handlers for the event type."""
         results = []
 
-        # noinspection PyUnusedLocal
-        async def h1(event):
+        # noinspection unused-parameter
+        async def h1(event: DirigeraEvent) -> None:
             results.append("h1")
 
-        # noinspection PyUnusedLocal
-        async def h2(event):
+        # noinspection unused-parameter
+        async def h2(event: DirigeraEvent) -> None:
             results.append("h2")
 
-        # noinspection PyUnusedLocal
-        async def h3(event):
+        # noinspection unused-parameter
+        async def h3(event: DirigeraEvent) -> None:
             results.append("h3")
 
         event_bus.subscribe(EventType.DEVICE_DISCOVERED, h1)
@@ -282,15 +306,15 @@ class TestAsyncEventBusPublish:
         assert set(results) == {"h1", "h2", "h3"}
 
     @pytest.mark.unit
-    async def test_publish_only_calls_matching_type(self, event_bus):
+    async def test_publish_only_calls_matching_type(self, event_bus: AsyncEventBus) -> None:
         """publish() does not call handlers for other event types."""
         state_received = []
         mqtt_received = []
 
-        async def state_handler(event):
+        async def state_handler(event: Any) -> None:
             state_received.append(event)
 
-        async def mqtt_handler(event):
+        async def mqtt_handler(event: Any) -> None:
             mqtt_received.append(event)
 
         event_bus.subscribe(EventType.STATE_CHANGED, state_handler)
@@ -302,21 +326,24 @@ class TestAsyncEventBusPublish:
         assert len(mqtt_received) == 0
 
     @pytest.mark.unit
-    async def test_publish_no_handlers_does_not_raise(self, event_bus):
+    async def test_publish_no_handlers_does_not_raise(self, event_bus: AsyncEventBus) -> None:
         """publish() with no handlers is a no-op and does not raise."""
         await event_bus.publish(DirigeraEvent(EventType.COMMAND_RECEIVED, "dev_1"))
 
     @pytest.mark.unit
-    async def test_publish_failing_handler_does_not_block_others(self, event_bus):
+    async def test_publish_failing_handler_does_not_block_others(
+        self,
+        event_bus: AsyncEventBus,
+    ) -> None:
         """A handler that raises does not prevent other handlers running."""
         results = []
 
-        # noinspection PyUnusedLocal
-        async def bad_handler(event):
+        # noinspection unused-parameter
+        async def bad_handler(event: DirigeraEvent) -> None:
             raise RuntimeError("handler crashed")
 
-        # noinspection PyUnusedLocal
-        async def good_handler(event):
+        # noinspection unused-parameter
+        async def good_handler(event: DirigeraEvent) -> None:
             results.append("ok")
 
         event_bus.subscribe(EventType.STATE_CHANGED, bad_handler)
@@ -329,19 +356,19 @@ class TestAsyncEventBusPublish:
 
     # noinspection PyTypeChecker
     @pytest.mark.unit
-    async def test_publish_invalid_event_raises(self, event_bus):
+    async def test_publish_invalid_event_raises(self, event_bus: AsyncEventBus) -> None:
         """publish() raises for non-DirigeraEvent input."""
         with pytest.raises(DirigeraBridgeError) as exc_info:
-            await event_bus.publish("not_an_event")
+            await event_bus.publish("not_an_event")  # type: ignore[arg-type]
         assert exc_info.value.code == ErrorCode.INTERNAL_INVALID_ARGUMENT
 
     @pytest.mark.unit
-    async def test_publish_passes_correct_event_to_handler(self, event_bus):
+    async def test_publish_passes_correct_event_to_handler(self, event_bus: AsyncEventBus) -> None:
         """Handler receives the exact event that was published."""
         received = []
 
         # noinspection PyShadowingNames
-        async def handler(event):
+        async def handler(event: Any) -> None:
             received.append(event)
 
         event_bus.subscribe(EventType.STATE_CHANGED, handler)
@@ -364,11 +391,11 @@ class TestAsyncEventBusPublish:
 
 class TestAsyncEventBusPublishNowait:
     @pytest.mark.unit
-    async def test_publish_nowait_schedules_delivery(self, event_bus):
+    async def test_publish_nowait_schedules_delivery(self, event_bus: AsyncEventBus) -> None:
         """publish_nowait schedules the event for delivery."""
         received = []
 
-        async def handler(event):
+        async def handler(event: Any) -> None:
             received.append(event)
 
         event_bus.subscribe(EventType.MQTT_CONNECTED, handler)
@@ -381,10 +408,10 @@ class TestAsyncEventBusPublishNowait:
 
     # noinspection PyTypeChecker
     @pytest.mark.unit
-    async def test_publish_nowait_invalid_event_raises(self, event_bus):
+    async def test_publish_nowait_invalid_event_raises(self, event_bus: AsyncEventBus) -> None:
         """publish_nowait raises immediately for invalid input."""
         with pytest.raises(DirigeraBridgeError) as exc_info:
-            event_bus.publish_nowait("not_an_event")
+            event_bus.publish_nowait("not_an_event")  # type: ignore[arg-type]
         assert exc_info.value.code == ErrorCode.INTERNAL_INVALID_ARGUMENT
 
 
@@ -393,11 +420,11 @@ class TestAsyncEventBusPublishNowait:
 
 class TestAsyncEventBusClear:
     @pytest.mark.unit
-    def test_clear_specific_type(self, event_bus):
+    def test_clear_specific_type(self, event_bus: AsyncEventBus) -> None:
         """clear(event_type) removes only handlers for that type."""
 
-        # noinspection PyUnusedLocal
-        async def handler(event):
+        # noinspection unused-parameter
+        async def handler(event: DirigeraEvent) -> None:
             pass
 
         event_bus.subscribe(EventType.STATE_CHANGED, handler)
@@ -409,11 +436,11 @@ class TestAsyncEventBusClear:
         assert event_bus.subscriber_count(EventType.DEVICE_DISCOVERED) == 1
 
     @pytest.mark.unit
-    def test_clear_all(self, event_bus):
+    def test_clear_all(self, event_bus: AsyncEventBus) -> None:
         """clear() with no argument removes all handlers for all types."""
 
-        # noinspection PyUnusedLocal
-        async def handler(event):
+        # noinspection unused-parameter
+        async def handler(event: DirigeraEvent) -> None:
             pass
 
         event_bus.subscribe(EventType.STATE_CHANGED, handler)
@@ -427,14 +454,14 @@ class TestAsyncEventBusClear:
 
     # noinspection PyTypeChecker
     @pytest.mark.unit
-    def test_clear_invalid_event_type_raises(self, event_bus):
+    def test_clear_invalid_event_type_raises(self, event_bus: AsyncEventBus) -> None:
         """clear() raises for invalid event_type argument."""
         with pytest.raises(DirigeraBridgeError) as exc_info:
-            event_bus.clear("not_an_event_type")
+            event_bus.clear("not_an_event_type")  # type: ignore[arg-type]
         assert exc_info.value.code == ErrorCode.INTERNAL_INVALID_ARGUMENT
 
     @pytest.mark.unit
-    def test_clear_empty_bus_is_noop(self, event_bus):
+    def test_clear_empty_bus_is_noop(self, event_bus: AsyncEventBus) -> None:
         """clear() on an empty bus does not raise."""
         event_bus.clear()
         for et in EventType:
@@ -446,21 +473,21 @@ class TestAsyncEventBusClear:
 
 class TestAsyncEventBusSubscriberCount:
     @pytest.mark.unit
-    def test_initial_count_is_zero(self, event_bus):
+    def test_initial_count_is_zero(self, event_bus: AsyncEventBus) -> None:
         """All event types start with zero subscribers."""
         for et in EventType:
             assert event_bus.subscriber_count(et) == 0
 
     @pytest.mark.unit
-    def test_count_increments_on_subscribe(self, event_bus):
+    def test_count_increments_on_subscribe(self, event_bus: AsyncEventBus) -> None:
         """subscriber_count reflects the number of subscribed handlers."""
 
-        # noinspection PyUnusedLocal
-        async def h1(event):
+        # noinspection unused-parameter
+        async def h1(event: DirigeraEvent) -> None:
             pass
 
-        # noinspection PyUnusedLocal
-        async def h2(event):
+        # noinspection unused-parameter
+        async def h2(event: DirigeraEvent) -> None:
             pass
 
         assert event_bus.subscriber_count(EventType.STATE_CHANGED) == 0
@@ -470,11 +497,11 @@ class TestAsyncEventBusSubscriberCount:
         assert event_bus.subscriber_count(EventType.STATE_CHANGED) == 2
 
     @pytest.mark.unit
-    def test_count_decrements_on_unsubscribe(self, event_bus):
+    def test_count_decrements_on_unsubscribe(self, event_bus: AsyncEventBus) -> None:
         """subscriber_count decrements when a handler is removed."""
 
-        # noinspection PyUnusedLocal
-        async def handler(event):
+        # noinspection unused-parameter
+        async def handler(event: DirigeraEvent) -> None:
             pass
 
         event_bus.subscribe(EventType.STATE_CHANGED, handler)
@@ -483,8 +510,8 @@ class TestAsyncEventBusSubscriberCount:
 
     # noinspection PyTypeChecker
     @pytest.mark.unit
-    def test_count_invalid_event_type_raises(self, event_bus):
+    def test_count_invalid_event_type_raises(self, event_bus: AsyncEventBus) -> None:
         """subscriber_count raises for invalid event_type."""
         with pytest.raises(DirigeraBridgeError) as exc_info:
-            event_bus.subscriber_count("bad_type")
+            event_bus.subscriber_count("bad_type")  # type: ignore[arg-type]
         assert exc_info.value.code == ErrorCode.INTERNAL_INVALID_ARGUMENT

@@ -14,8 +14,12 @@ Covers:
     - DEVICE_TYPES registry has both motionSensor and waterSensor
 """
 
-import pytest
+from typing import Any
 
+import pytest
+from ha_mqtt_sdk import DeviceInfo
+
+from app.mapping import DeviceContext
 from app.mapping.domains.binary_sensor import (
     DEVICE_TYPES,
     map_motion_sensor,
@@ -23,7 +27,7 @@ from app.mapping.domains.binary_sensor import (
 )
 
 
-class MockDeviceInfo(dict):
+class MockDeviceInfo(DeviceInfo):
     """
     Minimal DeviceInfo double for domain-mapper unit tests.
 
@@ -37,16 +41,17 @@ class MockDeviceInfo(dict):
     pass
 
 
-class MockAttrs:
-    def __init__(self, d):
+class MockAttrs(dict[str, Any]):
+    def __init__(self, d: Any):
+        super().__init__()
         self._d = d
 
-    def get(self, k, default=None):
+    def get(self, k: Any, default: Any = None) -> Any:
         return self._d.get(k, default)
 
 
-class MockContext:
-    def __init__(self, attrs, name="Test Sensor", lid="sensor_abc_1"):
+class MockContext(DeviceContext):
+    def __init__(self, attrs: Any, name: str = "Test Sensor", lid: str = "sensor_abc_1"):
         self.logical_id = lid
         self.device_name = name
         self.attributes = MockAttrs(attrs)
@@ -54,7 +59,7 @@ class MockContext:
 
 class TestMapMotionSensor:
     @pytest.mark.unit
-    def test_without_battery_produces_one_entity(self):
+    def test_without_battery_produces_one_entity(self) -> None:
         """motionSensor without battery → 1 binary_sensor."""
         ctx = MockContext({"isDetected": False})
         result = map_motion_sensor(ctx, MockDeviceInfo())
@@ -62,21 +67,21 @@ class TestMapMotionSensor:
         assert result[0].domain.value == "binary_sensor"
 
     @pytest.mark.unit
-    def test_with_battery_produces_two_entities(self):
+    def test_with_battery_produces_two_entities(self) -> None:
         """motionSensor with battery → 2 entities."""
         ctx = MockContext({"isDetected": False, "batteryPercentage": 70})
         result = map_motion_sensor(ctx, MockDeviceInfo())
         assert len(result) == 2
 
     @pytest.mark.unit
-    def test_motion_device_class(self):
+    def test_motion_device_class(self) -> None:
         """Primary entity has device_class=motion."""
         ctx = MockContext({"isDetected": False})
         result = map_motion_sensor(ctx, MockDeviceInfo())
         assert result[0].extra["device_class"] == "motion"
 
     @pytest.mark.unit
-    def test_payload_convention(self):
+    def test_payload_convention(self) -> None:
         """Binary sensor has payload_on=ON and payload_off=OFF."""
         ctx = MockContext({"isDetected": False})
         result = map_motion_sensor(ctx, MockDeviceInfo())
@@ -84,7 +89,7 @@ class TestMapMotionSensor:
         assert result[0].extra["payload_off"] == "OFF"
 
     @pytest.mark.unit
-    def test_battery_entity_config(self):
+    def test_battery_entity_config(self) -> None:
         """Battery entity has correct device_class and unit."""
         ctx = MockContext(
             {"isDetected": False, "batteryPercentage": 70},
@@ -98,7 +103,7 @@ class TestMapMotionSensor:
         assert battery.unique_id.endswith("battery")
 
     @pytest.mark.unit
-    def test_unique_ids_distinct(self):
+    def test_unique_ids_distinct(self) -> None:
         """motion and battery unique_ids are distinct."""
         ctx = MockContext({"isDetected": False, "batteryPercentage": 70})
         result = map_motion_sensor(ctx, MockDeviceInfo())
@@ -106,7 +111,7 @@ class TestMapMotionSensor:
         assert len(uids) == len(set(uids))
 
     @pytest.mark.unit
-    def test_entity_name_contains_device_name(self):
+    def test_entity_name_contains_device_name(self) -> None:
         """Entity names contain device name."""
         ctx = MockContext(
             {"isDetected": False, "batteryPercentage": 70},
@@ -114,10 +119,11 @@ class TestMapMotionSensor:
         )
         result = map_motion_sensor(ctx, MockDeviceInfo())
         for entity in result:
+            assert isinstance(entity.name, str)
             assert "Bewegingssensor Gang" in entity.name
 
     @pytest.mark.unit
-    def test_real_vallhorn_fixture(self, vallhorn_motion_raw):
+    def test_real_vallhorn_fixture(self, vallhorn_motion_raw: dict[str, Any]) -> None:
         """Real VALLHORN motionSensor fixture maps correctly."""
         from app.dirigera.models import DirigeraDevice
         from app.mapping.device_registry import build_device_contexts
@@ -134,28 +140,28 @@ class TestMapMotionSensor:
 
 class TestMapWaterSensor:
     @pytest.mark.unit
-    def test_without_battery_produces_one_entity(self):
+    def test_without_battery_produces_one_entity(self) -> None:
         """waterSensor without battery → 1 binary_sensor."""
         ctx = MockContext({"waterLeakDetected": False})
         result = map_water_sensor(ctx, MockDeviceInfo())
         assert len(result) == 1
 
     @pytest.mark.unit
-    def test_with_battery_produces_two_entities(self):
+    def test_with_battery_produces_two_entities(self) -> None:
         """waterSensor with battery → 2 entities."""
         ctx = MockContext({"waterLeakDetected": False, "batteryPercentage": 70})
         result = map_water_sensor(ctx, MockDeviceInfo())
         assert len(result) == 2
 
     @pytest.mark.unit
-    def test_moisture_device_class(self):
+    def test_moisture_device_class(self) -> None:
         """Primary entity has device_class=moisture."""
         ctx = MockContext({"waterLeakDetected": False})
         result = map_water_sensor(ctx, MockDeviceInfo())
         assert result[0].extra["device_class"] == "moisture"
 
     @pytest.mark.unit
-    def test_payload_convention(self):
+    def test_payload_convention(self) -> None:
         """Binary sensor has payload_on=ON and payload_off=OFF."""
         ctx = MockContext({"waterLeakDetected": False})
         result = map_water_sensor(ctx, MockDeviceInfo())
@@ -163,7 +169,7 @@ class TestMapWaterSensor:
         assert result[0].extra["payload_off"] == "OFF"
 
     @pytest.mark.unit
-    def test_unique_ids_distinct(self):
+    def test_unique_ids_distinct(self) -> None:
         """moisture and battery unique_ids are distinct."""
         ctx = MockContext({"waterLeakDetected": False, "batteryPercentage": 70})
         result = map_water_sensor(ctx, MockDeviceInfo())
@@ -171,7 +177,7 @@ class TestMapWaterSensor:
         assert len(uids) == len(set(uids))
 
     @pytest.mark.unit
-    def test_real_badring_fixture(self, water_sensor_raw):
+    def test_real_badring_fixture(self, water_sensor_raw: dict[str, Any]) -> None:
         """Real BADRING waterSensor fixture maps correctly."""
         from app.dirigera.models import DirigeraDevice
         from app.mapping.device_registry import build_device_contexts
@@ -187,12 +193,12 @@ class TestMapWaterSensor:
 
 class TestBinarySensorDeviceTypes:
     @pytest.mark.unit
-    def test_both_keys_registered(self):
+    def test_both_keys_registered(self) -> None:
         """DEVICE_TYPES has motionSensor and waterSensor."""
         assert "motionSensor" in DEVICE_TYPES
         assert "waterSensor" in DEVICE_TYPES
 
     @pytest.mark.unit
-    def test_different_mappers(self):
+    def test_different_mappers(self) -> None:
         """motionSensor and waterSensor point to different functions."""
         assert DEVICE_TYPES["motionSensor"] is not DEVICE_TYPES["waterSensor"]

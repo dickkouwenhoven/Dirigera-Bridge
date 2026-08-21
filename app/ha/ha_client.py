@@ -55,7 +55,7 @@ Design notes:
       set_message_callback() itself — doing so overwrites the SDK's
       routing and breaks command handling entirely. Callbacks passed
       in here are wrapped only to add metrics/logging, then handed to
-      sdk.register() unchanged in shape.
+      sdk.register() unchanged.
     - Availability is published as retained so HA immediately sees
       the device as offline if the bridge disconnects unexpectedly
       (via Last Will and Testament set during connect).
@@ -71,12 +71,9 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Awaitable, Callable, List, Optional
+from _collections_abc import Awaitable, Callable
 
-from ha_mqtt_sdk import MQTTSettings
-from ha_mqtt_sdk import Entity
-from ha_mqtt_sdk import AsyncMQTTClient
-from ha_mqtt_sdk import AsyncHASDK
+from ha_mqtt_sdk import AsyncHASDK, AsyncMQTTClient, Entity, MQTTSettings
 
 from ..config import Settings
 from ..core.discovery_cache import DiscoveryCache
@@ -87,6 +84,7 @@ from ..core.retry import RetryConfig, retry_with_backoff
 
 __all__ = [
     "HAClient",
+    "AsyncMQTTClient",
 ]
 
 logger = logging.getLogger(__name__)
@@ -136,8 +134,7 @@ class HAClient:
         if not isinstance(lifecycle, ServiceLifecycle):
             raise DirigeraBridgeError(
                 ErrorCode.INTERNAL_INVALID_ARGUMENT,
-                f"HAClient: lifecycle must be ServiceLifecycle, "
-                f"got {type(lifecycle).__name__}",
+                f"HAClient: lifecycle must be ServiceLifecycle, got {type(lifecycle).__name__}",
             )
         if not isinstance(discovery_cache, DiscoveryCache):
             raise DirigeraBridgeError(
@@ -151,9 +148,9 @@ class HAClient:
         self._lifecycle = lifecycle
         self._discovery_cache = discovery_cache
 
-        # HASDK objects — created in connect()
-        self._mqtt_client: Optional[AsyncMQTTClient] = None
-        self._sdk: Optional[AsyncHASDK] = None
+        # HASDK objects — AsyncMQTTClient | None
+        self._mqtt_client: AsyncMQTTClient | None = None
+        self._sdk: AsyncHASDK | None = None
 
         # Stop event for retry loop interruption
         self._stop_event: asyncio.Event = asyncio.Event()
@@ -218,8 +215,8 @@ class HAClient:
                 return
 
             except Exception as exc:
-                if attempt > 1:
-                    self._metrics.increment(MetricName.MQTT_RECONNECT_ATTEMPTS)
+                # if attempt > 1:
+                self._metrics.increment(MetricName.MQTT_RECONNECT_ATTEMPTS)
                 logger.warning(
                     "HAClient: MQTT connect attempt %d failed: %s",
                     attempt,
@@ -268,7 +265,7 @@ class HAClient:
     async def register_entity(
         self,
         entity: Entity,
-        command_callback: Optional[CommandCallback] = None,
+        command_callback: CommandCallback | None = None,
     ) -> None:
         """
         Register an HA entity via MQTT discovery.
@@ -316,11 +313,9 @@ class HAClient:
         try:
             assert self._sdk is not None
 
-            wrapped_callback: Optional[CommandCallback] = None
+            wrapped_callback: CommandCallback | None = None
             if command_callback is not None:
-                wrapped_callback = self._wrap_command_callback(
-                    entity.unique_id, command_callback
-                )
+                wrapped_callback = self._wrap_command_callback(entity.unique_id, command_callback)
 
             # command_callback is handed straight to the SDK — it owns
             # the command_topic subscription and topic → callback
@@ -364,7 +359,7 @@ class HAClient:
                 ErrorCode.MQTT_REGISTRATION_FAILED,
                 f"Failed to register entity '{entity.unique_id}': {exc}",
                 cause=exc,
-            )
+            ) from exc
 
     async def update_state(
         self,
@@ -411,7 +406,7 @@ class HAClient:
             payload[:80],
         )
 
-    def get_state_topic(self, entity: Entity) -> Optional[str]:
+    def get_state_topic(self, entity: Entity) -> str | None:
         """
         Resolve the MQTT state topic for an entity.
 
@@ -491,7 +486,7 @@ class HAClient:
                 ErrorCode.MQTT_PUBLISH_FAILED,
                 f"Failed to publish to topic '{state_topic}': {exc}",
                 cause=exc,
-            )
+            ) from exc
 
     async def update_availability(
         self,
@@ -514,8 +509,7 @@ class HAClient:
         if not isinstance(entity, Entity):
             raise DirigeraBridgeError(
                 ErrorCode.INTERNAL_INVALID_ARGUMENT,
-                f"update_availability: entity must be Entity, "
-                f"got {type(entity).__name__}",
+                f"update_availability: entity must be Entity, got {type(entity).__name__}",
             )
 
         self._require_connected("update_availability")
@@ -548,9 +542,9 @@ class HAClient:
                 ErrorCode.MQTT_PUBLISH_FAILED,
                 f"Failed to publish availability for '{entity.unique_id}': {exc}",
                 cause=exc,
-            )
+            ) from exc
 
-    async def set_all_offline(self, entities: List[Entity]) -> None:
+    async def set_all_offline(self, entities: list[Entity]) -> None:
         """
         Mark all given entities as offline.
 
@@ -558,7 +552,7 @@ class HAClient:
         HA shows all devices as unavailable rather than stale.
 
         Args:
-            entities (List[Entity]): Entities to mark offline.
+            entities (list[Entity]): Entities to mark offline.
         """
 
         for entity in entities:
@@ -669,6 +663,5 @@ class HAClient:
         if self._mqtt_client is None or self._sdk is None:
             raise DirigeraBridgeError(
                 ErrorCode.MQTT_CONNECTION_FAILED,
-                f"HAClient.{operation}: MQTT client is not connected — "
-                f"call connect() first",
+                f"HAClient.{operation}: MQTT client is not connected — call connect() first",
             )

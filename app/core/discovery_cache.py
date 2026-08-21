@@ -56,7 +56,6 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Dict, FrozenSet, List, Optional, Set
 
 from .errors import DirigeraBridgeError, ErrorCode
 
@@ -99,7 +98,7 @@ class RegistrationRecord:
 
     logical_id: str
     relation_id: str
-    ha_domains: FrozenSet[str]
+    ha_domains: frozenset[str]
     device_name: str
 
 
@@ -122,11 +121,11 @@ class DiscoveryCache:
 
     def __init__(self) -> None:
         # Primary index: logical_id → RegistrationRecord
-        self._by_logical_id: Dict[str, RegistrationRecord] = {}
+        self._by_logical_id: dict[str, RegistrationRecord] = {}
 
         # Secondary index: relation_id → set of logical_ids
         # Maintained in sync with _by_logical_id for O(1) sibling lookup
-        self._by_relation_id: Dict[str, Set[str]] = {}
+        self._by_relation_id: dict[str, set[str]] = {}
 
         logger.debug("DiscoveryCache initialised")
 
@@ -136,7 +135,7 @@ class DiscoveryCache:
         self,
         logical_id: str,
         relation_id: str,
-        ha_domains: List[str],
+        ha_domains: list[str],
         device_name: str,
     ) -> None:
         """
@@ -188,16 +187,14 @@ class DiscoveryCache:
         # ── Log ───────────────────────────────────────────────────────────
         if previously_registered:
             logger.debug(
-                "DiscoveryCache: updated registration for '%s' "
-                "(logical_id=%s, domains=%s)",
+                "DiscoveryCache: updated registration for '%s' (logical_id=%s, domains=%s)",
                 device_name,
                 logical_id,
                 sorted(ha_domains),
             )
         else:
             logger.info(
-                "DiscoveryCache: registered '%s' "
-                "(logical_id=%s, relation_id=%s, domains=%s)",
+                "DiscoveryCache: registered '%s' (logical_id=%s, relation_id=%s, domains=%s)",
                 device_name,
                 logical_id,
                 relation_id,
@@ -278,7 +275,7 @@ class DiscoveryCache:
         _validate_str(logical_id, "logical_id")
         return logical_id in self._by_logical_id
 
-    def get_record(self, logical_id: str) -> Optional[RegistrationRecord]:
+    def get_record(self, logical_id: str) -> RegistrationRecord | None:
         """
         Return the full RegistrationRecord for a logical device,
         or None if not registered.
@@ -296,7 +293,7 @@ class DiscoveryCache:
         _validate_str(logical_id, "logical_id")
         return self._by_logical_id.get(logical_id)
 
-    def get_registered_domains(self, logical_id: str) -> FrozenSet[str]:
+    def get_registered_domains(self, logical_id: str) -> frozenset[str]:
         """
         Return the HA domains registered for a specific logical device.
 
@@ -306,7 +303,7 @@ class DiscoveryCache:
             logical_id (str): Dirigera logical device id.
 
         Returns:
-            FrozenSet[str]: Registered HA domain strings.
+            frozenset[str]: Registered HA domain strings.
 
         Raises:
             DirigeraBridgeError: If logical_id is not a non-empty string.
@@ -316,14 +313,14 @@ class DiscoveryCache:
         record = self._by_logical_id.get(logical_id)
         return record.ha_domains if record is not None else frozenset()
 
-    def get_all_logical_ids(self) -> Set[str]:
+    def get_all_logical_ids(self) -> set[str]:
         """
         Return the set of all registered logical device ids.
 
         Returns a copy so callers cannot mutate the internal key set.
 
         Returns:
-            Set[str]: All registered logical device ids.
+            set[str]: All registered logical device ids.
         """
 
         return set(self._by_logical_id.keys())
@@ -331,7 +328,7 @@ class DiscoveryCache:
     def get_logical_ids_for_relation(
         self,
         relation_id: str,
-    ) -> Set[str]:
+    ) -> set[str]:
         """
         Return all registered logical ids that share a relation_id.
 
@@ -346,7 +343,7 @@ class DiscoveryCache:
             relation_id (str):    Physical device relation id.
 
         Returns:
-            Set[str]:        Registered logical ids for this relation.
+            set[str]:        Registered logical ids for this relation.
                         Empty set if the relation_id is unknown.
 
         Raises:
@@ -380,7 +377,7 @@ class DiscoveryCache:
 
     # ── Public API — snapshot ─────────────────────────────────────────────
 
-    def snapshot(self) -> Dict[str, RegistrationRecord]:
+    def snapshot(self) -> dict[str, RegistrationRecord]:
         """
         Return a shallow copy of the full registration index.
 
@@ -391,15 +388,14 @@ class DiscoveryCache:
         Used for diagnostics, health logging, and test assertions.
 
         Returns:
-            Dict[str, RegistrationRecord]:
+            dict[str, RegistrationRecord]:
                 logical_id → RegistrationRecord
         """
 
         snap = dict(self._by_logical_id)
 
         logger.debug(
-            "DiscoveryCache: snapshot taken — %d logical device(s), "
-            "%d physical device(s)",
+            "DiscoveryCache: snapshot taken — %d logical device(s), %d physical device(s)",
             len(snap),
             self.relation_count(),
         )
@@ -419,6 +415,7 @@ def _validate_str(value: object, name: str) -> None:
     """
 
     if not isinstance(value, str) or not value.strip():
+        # noinspection string-conversion-without-dunder-method
         raise DirigeraBridgeError(
             ErrorCode.INTERNAL_INVALID_ARGUMENT,
             f"DiscoveryCache: {name} must be a non-empty string, got {value!r}",
@@ -434,6 +431,7 @@ def _validate_domains(ha_domains: object) -> None:
     """
 
     if not isinstance(ha_domains, list) or not ha_domains:
+        # noinspection string-conversion-without-dunder-method
         raise DirigeraBridgeError(
             ErrorCode.INTERNAL_INVALID_ARGUMENT,
             f"DiscoveryCache: ha_domains must be a non-empty list, got {ha_domains!r}",
@@ -443,6 +441,5 @@ def _validate_domains(ha_domains: object) -> None:
         if not isinstance(domain, str) or not domain.strip():
             raise DirigeraBridgeError(
                 ErrorCode.INTERNAL_INVALID_ARGUMENT,
-                f"DiscoveryCache: each domain must be a non-empty "
-                f"string, got {domain!r}",
+                f"DiscoveryCache: each domain must be a non-empty string, got {domain!r}",
             )

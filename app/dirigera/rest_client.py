@@ -57,7 +57,7 @@ Design notes:
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import aiohttp
 
@@ -105,20 +105,18 @@ class DirigeraRestClient:
         if not isinstance(settings, Settings):
             raise DirigeraBridgeError(
                 ErrorCode.INTERNAL_INVALID_ARGUMENT,
-                f"DirigeraRestClient: settings must be Settings, "
-                f"got {type(settings).__name__}",
+                f"DirigeraRestClient: settings must be Settings, got {type(settings).__name__}",
             )
 
         if not isinstance(metrics, MetricsStore):
             raise DirigeraBridgeError(
                 ErrorCode.INTERNAL_INVALID_ARGUMENT,
-                f"DirigeraRestClient: metrics must be MetricsStore, "
-                f"got {type(metrics).__name__}",
+                f"DirigeraRestClient: metrics must be MetricsStore, got {type(metrics).__name__}",
             )
 
         self._settings = settings
         self._metrics = metrics
-        self._session: Optional[aiohttp.ClientSession] = None
+        self._session: aiohttp.ClientSession | None = None
 
         self._base_url = f"https://{settings.dirigera_ip}:{_API_PORT}/{_API_VERSION}"
 
@@ -188,7 +186,7 @@ class DirigeraRestClient:
                 ErrorCode.REST_INVALID_RESPONSE,
                 f"GET /devices/{logical_id}: failed to parse device: {exc}",
                 cause=exc,
-            )
+            ) from exc
 
         self._metrics.increment(MetricName.REST_REQUESTS_SUCCESS)
         logger.debug(
@@ -200,7 +198,7 @@ class DirigeraRestClient:
 
         return device
 
-    async def get_devices(self) -> List[DirigeraDevice]:
+    async def get_devices(self) -> list[DirigeraDevice]:
         """
         Fetch the complete device list from the Dirigera hub.
 
@@ -210,7 +208,7 @@ class DirigeraRestClient:
         is needed.
 
         Returns:
-            List[DirigeraDevice]: All devices currently known to the hub.
+            list[DirigeraDevice]: All devices currently known to the hub.
                                   Maybe an empty list if the hub has no
                                   paired devices.
 
@@ -240,7 +238,7 @@ class DirigeraRestClient:
                 f"GET /devices: expected a JSON array, got {type(raw_list).__name__}",
             )
 
-        devices: List[DirigeraDevice] = []
+        devices: list[DirigeraDevice] = []
         parse_errors = 0
 
         for raw_device in raw_list:
@@ -258,8 +256,7 @@ class DirigeraRestClient:
             except Exception as exc:
                 parse_errors += 1
                 logger.warning(
-                    "Failed to parse device from discovery response "
-                    "(skipping): %s — raw id=%r",
+                    "Failed to parse device from discovery response (skipping): %s — raw id=%r",
                     exc,
                     raw_device.get("id", "<unknown>")
                     if isinstance(raw_device, dict)
@@ -268,8 +265,7 @@ class DirigeraRestClient:
 
         if parse_errors:
             logger.warning(
-                "Device list parsed with %d error(s) — "
-                "%d device(s) loaded successfully",
+                "Device list parsed with %d error(s) — %d device(s) loaded successfully",
                 parse_errors,
                 len(devices),
             )
@@ -287,7 +283,7 @@ class DirigeraRestClient:
     async def send_command(
         self,
         logical_id: str,
-        attributes: Dict[str, Any],
+        attributes: dict[str, Any],
     ) -> None:
         """
         Send an attribute update command to a specific Dirigera device.
@@ -391,12 +387,12 @@ class DirigeraRestClient:
         assert self._session is not None
         return self._session
 
-    def _auth_headers(self) -> Dict[str, str]:
+    def _auth_headers(self) -> dict[str, str]:
         """
         Build the authentication headers for all Dirigera requests.
 
         Returns:
-            Dict[str, str]: Headers dict with Authorization Bearer token
+            dict[str, str]: Headers dict with Authorization Bearer token
                             and Content-Type.
         """
 
@@ -436,15 +432,6 @@ class DirigeraRestClient:
         except DirigeraBridgeError:
             raise
 
-        except aiohttp.ClientConnectionError as exc:
-            self._metrics.increment(MetricName.REST_REQUESTS_FAILED)
-            self._metrics.increment(MetricName.ERROR_REST)
-            raise DirigeraBridgeError(
-                ErrorCode.REST_REQUEST_FAILED,
-                f"GET {url}: connection error — {exc}",
-                cause=exc,
-            )
-
         except aiohttp.ServerTimeoutError as exc:
             self._metrics.increment(MetricName.REST_REQUESTS_FAILED)
             self._metrics.increment(MetricName.ERROR_REST)
@@ -452,7 +439,16 @@ class DirigeraRestClient:
                 ErrorCode.REST_TIMEOUT,
                 f"GET {url}: request timed out",
                 cause=exc,
-            )
+            ) from exc
+
+        except aiohttp.ClientConnectionError as exc:
+            self._metrics.increment(MetricName.REST_REQUESTS_FAILED)
+            self._metrics.increment(MetricName.ERROR_REST)
+            raise DirigeraBridgeError(
+                ErrorCode.REST_REQUEST_FAILED,
+                f"GET {url}: connection error — {exc}",
+                cause=exc,
+            ) from exc
 
         except Exception as exc:
             self._metrics.increment(MetricName.REST_REQUESTS_FAILED)
@@ -461,7 +457,7 @@ class DirigeraRestClient:
                 ErrorCode.REST_REQUEST_FAILED,
                 f"GET {url}: unexpected error — {exc}",
                 cause=exc,
-            )
+            ) from exc
 
     async def _patch_json(
         self,
@@ -508,15 +504,6 @@ class DirigeraRestClient:
         except DirigeraBridgeError:
             raise
 
-        except aiohttp.ClientConnectionError as exc:
-            self._metrics.increment(MetricName.REST_REQUESTS_FAILED)
-            self._metrics.increment(MetricName.ERROR_REST)
-            raise DirigeraBridgeError(
-                ErrorCode.REST_REQUEST_FAILED,
-                f"PATCH {url}: connection error — {exc}",
-                cause=exc,
-            )
-
         except aiohttp.ServerTimeoutError as exc:
             self._metrics.increment(MetricName.REST_REQUESTS_FAILED)
             self._metrics.increment(MetricName.ERROR_REST)
@@ -524,7 +511,16 @@ class DirigeraRestClient:
                 ErrorCode.REST_TIMEOUT,
                 f"PATCH {url}: request timed out",
                 cause=exc,
-            )
+            ) from exc
+
+        except aiohttp.ClientConnectionError as exc:
+            self._metrics.increment(MetricName.REST_REQUESTS_FAILED)
+            self._metrics.increment(MetricName.ERROR_REST)
+            raise DirigeraBridgeError(
+                ErrorCode.REST_REQUEST_FAILED,
+                f"PATCH {url}: connection error — {exc}",
+                cause=exc,
+            ) from exc
 
         except Exception as exc:
             self._metrics.increment(MetricName.REST_REQUESTS_FAILED)
@@ -533,7 +529,7 @@ class DirigeraRestClient:
                 ErrorCode.REST_REQUEST_FAILED,
                 f"PATCH {url}: unexpected error — {exc}",
                 cause=exc,
-            )
+            ) from exc
 
     def _raise_for_status(
         self,
@@ -578,8 +574,7 @@ class DirigeraRestClient:
             self._metrics.increment(MetricName.ERROR_REST)
             raise DirigeraBridgeError(
                 ErrorCode.REST_REQUEST_FAILED,
-                f"HTTP 429 from Dirigera ({url}) — "
-                f"rate limited, reduce command frequency",
+                f"HTTP 429 from Dirigera ({url}) — rate limited, reduce command frequency",
             )
 
         if status >= 500:

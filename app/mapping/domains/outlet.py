@@ -62,13 +62,10 @@ Design notes:
 from __future__ import annotations
 
 import logging
-from typing import List
+
+from ha_mqtt_sdk import DeviceInfo, Entity, HADomain
 
 from ..device_registry import DeviceContext
-from ha_mqtt_sdk import HADomain
-from ha_mqtt_sdk import Entity
-from ha_mqtt_sdk import DeviceInfo
-
 from . import make_unique_id
 
 __all__ = [
@@ -89,7 +86,7 @@ _ATTR_TOTAL_ENERGY_CONSUMED = "totalEnergyConsumed"
 def map_outlet(
     context: DeviceContext,
     device_info: DeviceInfo,
-) -> List[Entity]:
+) -> list[Entity]:
     """
     Map a Dirigera outlet DeviceContext to a list of HA entities.
 
@@ -105,7 +102,7 @@ def map_outlet(
                                   grouping in HA.
 
     Returns:
-        List[Entity]: Between 1 and 5 entities depending on which
+        list[Entity]: Between 1 and 5 entities depending on which
                       energy monitoring attributes are present.
     """
 
@@ -119,7 +116,7 @@ def map_outlet(
         lid,
     )
 
-    entities: List[Entity] = [_make_switch(lid, name, device_info)]
+    entities: list[Entity] = [_make_switch(lid, name, device_info)]
 
     # ── Switch entity (always present) ────────────────────────────────────
 

@@ -67,9 +67,11 @@ Design notes:
 
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
-from typing import Any, Dict, NamedTuple, Optional
+from contextlib import suppress
+from typing import Any, NamedTuple
 
 from ..core.errors import DirigeraBridgeError, ErrorCode
 from .domains import make_unique_id
@@ -104,7 +106,7 @@ class StatePayload(NamedTuple):
 # ── Fan mode mapping ──────────────────────────────────────────────────────────
 
 # Dirigera fanMode string → HA fan percentage (0 = off)
-_FAN_MODE_TO_PCT: Dict[str, int] = {
+_FAN_MODE_TO_PCT: dict[str, int] = {
     "off": 0,
     "low": 25,
     "medium": 50,
@@ -116,6 +118,7 @@ _FAN_MODE_TO_PCT: Dict[str, int] = {
 # ── StateMapper ───────────────────────────────────────────────────────────────
 
 
+# noinspection GrazieStyle
 class StateMapper:
     """
     Translates Dirigera attribute changes to HA MQTT state payloads.
@@ -132,8 +135,8 @@ class StateMapper:
         device_type: str,
         attribute: str,
         value: Any,
-        device_attributes: Optional[Dict[str, Any]] = None,
-    ) -> Optional[StatePayload]:
+        device_attributes: dict[str, Any] | None = None,
+    ) -> StatePayload | None:
         """
         Translate a Dirigera attribute change to an HA state payload.
 
@@ -142,6 +145,7 @@ class StateMapper:
             device_type (str):  Dirigera deviceType string for routing.
             attribute (str):    camelCase attribute name that changed.
             value (Any):        New attribute value from Dirigera.
+            device_attributes:  Device attributes
 
         Returns:
             StatePayload | None: (unique_id, payload) if this attribute
@@ -169,9 +173,7 @@ class StateMapper:
         # ── Route by device type ──────────────────────────────────────────
         try:
             if device_type == "light":
-                return self._map_light_state(
-                    logical_id, attribute, device_attributes or {}
-                )
+                return self._map_light_state(logical_id, attribute, device_attributes or {})
 
             if device_type == "outlet":
                 return self._map_outlet_state(logical_id, attribute, value)
@@ -234,8 +236,8 @@ class StateMapper:
     def _map_light_state(
         logical_id: str,
         attribute: str,
-        device_attributes: Dict[str, Any],
-    ) -> Optional[StatePayload]:
+        device_attributes: dict[str, Any],
+    ) -> StatePayload | None:
         """
         Translate a light attribute change into HA's merged JSON
         light state payload.
@@ -256,7 +258,7 @@ class StateMapper:
         because none of those payloads matched what HA's JSON schema
         actually expects to receive.
 
-        device_attributes is the FULL current known attribute dict
+        device_attributes is the FULL currently known attribute dict
         for this device — map_state()'s caller (orchestrator.py)
         supplies self._state_cache.get_device_state(logical_id),
         which already includes the just-changed attribute (the cache
@@ -321,16 +323,14 @@ class StateMapper:
             )
             return None
 
-        json_state: Dict[str, Any] = {}
+        json_state: dict[str, Any] = {}
 
         if "isOn" in device_attributes:
             json_state["state"] = _bool_to_onoff(device_attributes["isOn"])
 
         if "lightLevel" in device_attributes:
-            try:
+            with contextlib.suppress(TypeError, ValueError):
                 json_state["brightness"] = int(device_attributes["lightLevel"])
-            except (TypeError, ValueError):
-                pass
 
         if "colorTemperature" in device_attributes:
             try:
@@ -342,14 +342,12 @@ class StateMapper:
 
         hue = device_attributes.get("colorHue")
         sat = device_attributes.get("colorSaturation")
-        if hue is not None and sat is not None:
-            try:
+        if isinstance(hue, (int, float)) and isinstance(sat, (int, float)):
+            with suppress(TypeError, ValueError):
                 json_state["color"] = {
                     "h": float(hue),
                     "s": float(sat) * 100.0,  # Dirigera 0.0-1.0 → HA 0-100
                 }
-            except (TypeError, ValueError):
-                pass
 
         if not json_state:
             return None
@@ -361,7 +359,7 @@ class StateMapper:
         logical_id: str,
         attribute: str,
         value: Any,
-    ) -> Optional[StatePayload]:
+    ) -> StatePayload | None:
         """
         Translate outlet attribute changes to HA MQTT payloads.
 
@@ -436,7 +434,7 @@ class StateMapper:
         logical_id: str,
         attribute: str,
         value: Any,
-    ) -> Optional[StatePayload]:
+    ) -> StatePayload | None:
         """
         Translate motionSensor attribute changes to HA MQTT payloads.
 
@@ -480,7 +478,7 @@ class StateMapper:
         logical_id: str,
         attribute: str,
         value: Any,
-    ) -> Optional[StatePayload]:
+    ) -> StatePayload | None:
         """
         Translate waterSensor attribute changes to HA MQTT payloads.
 
@@ -526,7 +524,7 @@ class StateMapper:
         logical_id: str,
         attribute: str,
         value: Any,
-    ) -> Optional[StatePayload]:
+    ) -> StatePayload | None:
         """
         Translate lightSensor (VALLHORN _3 sibling) attribute changes.
 
@@ -555,7 +553,7 @@ class StateMapper:
         logical_id: str,
         attribute: str,
         value: Any,
-    ) -> Optional[StatePayload]:
+    ) -> StatePayload | None:
         """
         Translate environmentSensor (VINDSTYRKA) attribute changes.
 
@@ -617,7 +615,7 @@ class StateMapper:
         logical_id: str,
         attribute: str,
         value: Any,
-    ) -> Optional[StatePayload]:
+    ) -> StatePayload | None:
         """
         Translate lightController (remote) attribute changes.
 
@@ -671,7 +669,7 @@ class StateMapper:
         logical_id: str,
         attribute: str,
         value: Any,
-    ) -> Optional[StatePayload]:
+    ) -> StatePayload | None:
         """
         Translate button / shortcutController attribute changes.
 
@@ -708,7 +706,7 @@ class StateMapper:
         logical_id: str,
         attribute: str,
         value: Any,
-    ) -> Optional[StatePayload]:
+    ) -> StatePayload | None:
         """
         Translate blind attribute changes to HA MQTT payloads.
 
@@ -768,7 +766,7 @@ class StateMapper:
         logical_id: str,
         attribute: str,
         value: Any,
-    ) -> Optional[StatePayload]:
+    ) -> StatePayload | None:
         """
         Translate airPurifier attribute changes to HA MQTT payloads.
 
@@ -837,7 +835,7 @@ class StateMapper:
         logical_id: str,
         attribute: str,
         value: Any,
-    ) -> Optional[StatePayload]:
+    ) -> StatePayload | None:
         """
         Translate speaker (SYMFONISK) attribute changes to the
         composed entities defined in app/mapping/domains/speaker.py.
@@ -919,7 +917,7 @@ class StateMapper:
         logical_id: str,
         attribute: str,
         value: Any,
-    ) -> Optional[StatePayload]:
+    ) -> StatePayload | None:
         """
         Translate gateway attribute changes to HA MQTT payloads.
 
@@ -966,7 +964,7 @@ class StateMapper:
                 str(value),
             )
 
-        if attribute == "homeState":
+        if attribute == "homestate":
             return StatePayload(
                 make_unique_id(logical_id, "home_state"),
                 str(value),
@@ -1024,7 +1022,6 @@ class StateMapper:
             "otaPolicy",
             "otaScheduleStart",
             "otaScheduleEnd",
-            "homeState",
             "countryCode",
         ):
             return None
@@ -1041,7 +1038,7 @@ class StateMapper:
         logical_id: str,
         attribute: str,
         value: Any,
-    ) -> Optional[StatePayload]:
+    ) -> StatePayload | None:
         """
         Translate switch attribute changes to HA MQTT payloads.
 

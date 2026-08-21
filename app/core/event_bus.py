@@ -46,9 +46,10 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from _collections_abc import Awaitable, Callable
 from dataclasses import dataclass, field
-from enum import Enum, unique
-from typing import Any, Awaitable, Callable, Dict, List, Optional
+from enum import StrEnum, unique
+from typing import Any
 
 from .errors import DirigeraBridgeError, ErrorCode
 
@@ -68,7 +69,7 @@ AsyncHandler = Callable[["DirigeraEvent"], Awaitable[None]]
 
 
 @unique
-class EventType(str, Enum):
+class EventType(StrEnum):
     """
     All event types that flow through the internal event bus.
 
@@ -155,7 +156,7 @@ class DirigeraEvent:
 
     event_type: EventType
     logical_id: str
-    data: Dict[str, Any] = field(default_factory=dict)
+    data: dict[str, Any] = field(default_factory=dict)
     relation_id: str = ""
 
     def __post_init__(self) -> None:
@@ -164,15 +165,13 @@ class DirigeraEvent:
         if not isinstance(self.event_type, EventType):
             raise DirigeraBridgeError(
                 ErrorCode.INTERNAL_INVALID_ARGUMENT,
-                f"DirigeraEvent.event_type must be EventType, "
-                f"got {type(self.event_type).__name__}",
+                f"DirigeraEvent.event_type must be EventType, got {type(self.event_type).__name__}",
             )
 
         if not isinstance(self.logical_id, str):
             raise DirigeraBridgeError(
                 ErrorCode.INTERNAL_INVALID_ARGUMENT,
-                f"DirigeraEvent.logical_id must be str, "
-                f"got {type(self.logical_id).__name__}",
+                f"DirigeraEvent.logical_id must be str, got {type(self.logical_id).__name__}",
             )
 
         if not isinstance(self.data, dict):
@@ -184,8 +183,7 @@ class DirigeraEvent:
         if not isinstance(self.relation_id, str):
             raise DirigeraBridgeError(
                 ErrorCode.INTERNAL_INVALID_ARGUMENT,
-                f"DirigeraEvent.relation_id must be str, "
-                f"got {type(self.relation_id).__name__}",
+                f"DirigeraEvent.relation_id must be str, got {type(self.relation_id).__name__}",
             )
 
 
@@ -207,7 +205,7 @@ class AsyncEventBus:
 
     def __init__(self) -> None:
         # Registry: EventType → list of async handlers
-        self._handlers: Dict[EventType, List[AsyncHandler]] = {
+        self._handlers: dict[EventType, list[AsyncHandler]] = {
             event_type: [] for event_type in EventType
         }
         logger.debug("AsyncEventBus initialised")
@@ -240,8 +238,7 @@ class AsyncEventBus:
         if not isinstance(event_type, EventType):
             raise DirigeraBridgeError(
                 ErrorCode.INTERNAL_INVALID_ARGUMENT,
-                f"subscribe: event_type must be EventType, "
-                f"got {type(event_type).__name__}",
+                f"subscribe: event_type must be EventType, got {type(event_type).__name__}",
             )
 
         if not callable(handler):
@@ -287,8 +284,7 @@ class AsyncEventBus:
         if not isinstance(event_type, EventType):
             raise DirigeraBridgeError(
                 ErrorCode.INTERNAL_INVALID_ARGUMENT,
-                f"unsubscribe: event_type must be EventType, "
-                f"got {type(event_type).__name__}",
+                f"unsubscribe: event_type must be EventType, got {type(event_type).__name__}",
             )
 
         if handler in self._handlers[event_type]:
@@ -348,7 +344,7 @@ class AsyncEventBus:
         )
 
         # ── Log any handler errors without re-raising ─────────────────────
-        for handler, result in zip(handlers, results):
+        for handler, result in zip(handlers, results, strict=False):
             if isinstance(result, Exception):
                 logger.error(
                     "Handler '%s' raised an error for event '%s' (logical_id=%s): %s",
@@ -376,8 +372,7 @@ class AsyncEventBus:
         if not isinstance(event, DirigeraEvent):
             raise DirigeraBridgeError(
                 ErrorCode.INTERNAL_INVALID_ARGUMENT,
-                f"publish_nowait: event must be DirigeraEvent, "
-                f"got {type(event).__name__}",
+                f"publish_nowait: event must be DirigeraEvent, got {type(event).__name__}",
             )
 
         asyncio.create_task(
@@ -410,13 +405,12 @@ class AsyncEventBus:
         if not isinstance(event_type, EventType):
             raise DirigeraBridgeError(
                 ErrorCode.INTERNAL_INVALID_ARGUMENT,
-                f"subscriber_count: event_type must be EventType, "
-                f"got {type(event_type).__name__}",
+                f"subscriber_count: event_type must be EventType, got {type(event_type).__name__}",
             )
 
         return len(self._handlers[event_type])
 
-    def clear(self, event_type: Optional[EventType] = None) -> None:
+    def clear(self, event_type: EventType | None = None) -> None:
         """
         Remove all handlers, either for a specific event type or all.
 
@@ -432,8 +426,7 @@ class AsyncEventBus:
             if not isinstance(event_type, EventType):
                 raise DirigeraBridgeError(
                     ErrorCode.INTERNAL_INVALID_ARGUMENT,
-                    f"clear: event_type must be EventType or None, "
-                    f"got {type(event_type).__name__}",
+                    f"clear: event_type must be EventType or None, got {type(event_type).__name__}",
                 )
             self._handlers[event_type].clear()
             logger.debug("Cleared handlers for '%s'", event_type.value)

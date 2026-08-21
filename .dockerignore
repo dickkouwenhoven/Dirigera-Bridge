@@ -5,18 +5,13 @@
 .gitignore
 
 # Python artifacts
-__pycache__
-*.pyc
 *.pyo
 *.pyd
 .Python
 *.egg-info
 dist/
-build/
-
 # Virtual environments
 .venv
-venv
 env
 
 # Test and coverage artifacts
@@ -52,5 +47,4 @@ Thumbs.db
 # Secrets — never copy these
 *.key
 *.crt
-*.pem
 mosquitto/passwd

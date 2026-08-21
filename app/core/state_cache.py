@@ -51,7 +51,7 @@ from __future__ import annotations
 
 import copy
 import logging
-from typing import Any, Dict, Optional, Set, TypeAlias
+from typing import Any, Set  # noqa: UP035
 
 from .errors import DirigeraBridgeError, ErrorCode
 
@@ -62,10 +62,10 @@ __all__ = [
 logger = logging.getLogger(__name__)
 
 # Internal type alias: maps attribute_name -> value
-_DeviceState: TypeAlias = dict[str, object]
+type _DeviceState = dict[str, object]
 
 # Internal type alias: maps logical_id -> _DeviceState
-_CacheStore: TypeAlias = dict[str, _DeviceState]
+type _CacheStore = dict[str, _DeviceState]
 
 
 class StateCache:
@@ -151,8 +151,8 @@ class StateCache:
     def set_device_state(
         self,
         logical_id: str,
-        attributes: Dict[str, Any],
-    ) -> Dict[str, bool]:
+        attributes: dict[str, Any],
+    ) -> dict[str, bool]:
         """
         Update multiple attribute values for a device in one call.
 
@@ -164,7 +164,7 @@ class StateCache:
         attributes (dict): Mapping of attribute_name → value.
 
         Returns:
-        Dict[str, bool]: Mapping of attribute_name → changed flag,
+        dict[str, bool]: Mapping of attribute_name → changed flag,
             mirroring the return value of set() per
             attribute.
 
@@ -179,12 +179,11 @@ class StateCache:
         if not isinstance(attributes, dict):
             raise DirigeraBridgeError(
                 ErrorCode.INTERNAL_INVALID_ARGUMENT,
-                f"set_device_state: attributes must be dict, "
-                f"got {type(attributes).__name__}",
+                f"set_device_state: attributes must be dict, got {type(attributes).__name__}",
             )
 
         # ── Write each attribute ──────────────────────────────────────────
-        results: Dict[str, bool] = {}
+        results: dict[str, bool] = {}
         for attr, value in attributes.items():
             results[attr] = self.set(logical_id, attr, value)
 
@@ -230,7 +229,7 @@ class StateCache:
     def get_device_state(
         self,
         logical_id: str,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Return all cached attributes for a specific device.
 
@@ -241,7 +240,7 @@ class StateCache:
             logical_id (str): Dirigera logical device id.
 
         Returns:
-            Dict[str, Any]: Attribute name → value mapping.
+            dict[str, Any]: Attribute name → value mapping.
 
         Raises:
             DirigeraBridgeError: If logical_id is not a non-empty string.
@@ -285,16 +284,16 @@ class StateCache:
         if cached is _SENTINEL:
             return True  # Not cached yet — treat as changed
 
-        return cached != value
+        return bool(cached != value)
 
-    def get_all_logical_ids(self) -> Set[str]:
+    def get_all_logical_ids(self) -> Set[str]:  # noqa: UP006
         """
         Return the set of all logical device ids currently in the cache.
 
         Returns a copy so callers cannot mutate the internal key set.
 
         Returns:
-            Set[str]:    All known logical device ids.
+            set[str]:    All known logical device ids.
         """
 
         return set(self._store.keys())
@@ -309,7 +308,7 @@ class StateCache:
 
         return len(self._store)
 
-    def attribute_count(self, logical_id: Optional[str] = None) -> int:
+    def attribute_count(self, logical_id: str | None = None) -> int:
         """
         Return the number of cached attributes.
 
@@ -373,7 +372,7 @@ class StateCache:
 
     # ── Public API — snapshot ─────────────────────────────────────────────
 
-    def snapshot(self) -> Dict[str, Dict[str, Any]]:
+    def snapshot(self) -> dict[str, dict[str, Any]]:
         """
         Return a deep copy of the entire cache.
 
@@ -383,7 +382,7 @@ class StateCache:
         affected by concurrent cache updates during iteration.
 
         Returns:
-            Dict[str, Dict[str, Any]]:
+            dict[str, dict[str, Any]]:
                 logical_id → {attribute_name → value}
         """
 

@@ -39,8 +39,7 @@ Not responsible for:
 from __future__ import annotations
 
 import logging
-from enum import Enum, unique
-from typing import Optional
+from enum import StrEnum, unique
 
 __all__ = [
     "ErrorCode",
@@ -55,7 +54,7 @@ logger = logging.getLogger(__name__)
 
 
 @unique
-class ErrorCode(str, Enum):
+class ErrorCode(StrEnum):
     """
     Enumeration of all error codes used in the application.
 
@@ -141,7 +140,7 @@ class DirigeraBridgeError(Exception):
         self,
         code: ErrorCode,
         message: str,
-        cause: Optional[Exception] = None,
+        cause: Exception | None = None,
     ) -> None:
 
         # ── Validation ────────────────────────────────────────────────────
@@ -166,12 +165,7 @@ class DirigeraBridgeError(Exception):
 
     def __repr__(self) -> str:
         cause_repr = f", cause={self.__cause__!r}" if self.__cause__ is not None else ""
-        return (
-            f"DirigeraBridgeError("
-            f"code={self.code!r}, "
-            f"message={self.message!r}"
-            f"{cause_repr})"
-        )
+        return f"DirigeraBridgeError(code={self.code!r}, message={self.message!r}{cause_repr})"
 
 
 # ── Helper ────────────────────────────────────────────────────────────────────
@@ -197,9 +191,7 @@ def format_error(error: DirigeraBridgeError) -> str:
     """
 
     if not isinstance(error, DirigeraBridgeError):
-        raise TypeError(
-            f"format_error expects DirigeraBridgeError, got {type(error).__name__}"
-        )
+        raise TypeError(f"format_error expects DirigeraBridgeError, got {type(error).__name__}")
 
     base = str(error)
 

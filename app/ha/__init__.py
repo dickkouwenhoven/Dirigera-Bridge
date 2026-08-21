@@ -13,8 +13,9 @@ This package encapsulates:
 Consumers should import HAClient directly from this package.
 """
 
-from .ha_client import HAClient
+from .ha_client import AsyncMQTTClient, HAClient
 
 __all__ = [
+    "AsyncMQTTClient",
     "HAClient",
 ]

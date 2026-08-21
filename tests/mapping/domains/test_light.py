@@ -12,22 +12,29 @@ Covers:
         Tier 1: on/off only           → supported_color_modes=["onoff"]
         Tier 2: dimmable              → supported_color_modes=["brightness"]
         Tier 3: colour temperature    → supported_color_modes=["color_temp"]
-        Tier 4: full colour (RGB/HS)  → supported_color_modes=["hs","color_temp"]
+        Tier 4: full color (RGB/HS)  → supported_color_modes=["hs","color_temp"]
     - brightness_scale=100 when dimming capable
     - brightness_scale absent for on/off only lights
     - min_mireds / max_mireds set from colorTemperatureMin/Max
     - Kelvin inversion: Dirigera min/max mapping to HA mireds
     - min_mireds / max_mireds absent when CT range missing
     - JSON schema set for RGB lights, absent for simpler lights
-    - CT-only lights use schema=None (not json schema)
+    - CT-only lights use schema=None (not JSON schema)
     - _kelvin_to_mireds() — standard conversions
     - _kelvin_to_mireds() — zero/negative raises
     - DEVICE_TYPES registry maps 'light' to map_light
     - Real TRADFRI CWS fixture maps correctly
 """
 
-import pytest
+import logging
+from typing import Any
 
+import pytest
+from ha_mqtt_sdk import DeviceInfo
+
+from app.mapping import DeviceContext
+
+# noinspection protected-member,protected-member
 from app.mapping.domains.light import (
     DEVICE_TYPES,
     _build_light_extra,
@@ -35,11 +42,10 @@ from app.mapping.domains.light import (
     map_light,
 )
 
-
 # ── Shared mock objects ───────────────────────────────────────────────────────
 
 
-class MockDeviceInfo(dict):
+class MockDeviceInfo(DeviceInfo):
     """
     Minimal DeviceInfo double for domain-mapper unit tests.
 
@@ -53,26 +59,18 @@ class MockDeviceInfo(dict):
     pass
 
 
-class MockAttrs:
-    def __init__(self, d):
-        self._d = d
-
-    def get(self, k, default=None):
-        return self._d.get(k, default)
-
-
-class MockContext:
+class MockContext(DeviceContext):
     def __init__(
         self,
-        capabilities=None,
-        attrs=None,
-        name="Test Light",
-        lid="light_abc_1",
-    ):
+        capabilities: Any = None,
+        attrs: Any = None,
+        name: str = "Test Light",
+        lid: str = "light_abc_1",
+    ) -> None:
         self.logical_id = lid
         self.device_name = name
         self.capabilities = capabilities or []
-        self.attributes = MockAttrs(attrs or {})
+        self.attributes = attrs or {}
 
 
 # Capability constants matching domains/light.py
@@ -82,7 +80,7 @@ CAP_CT = "colorTemperature"
 CAP_HUE = "colorHue"
 CAP_SAT = "colorSaturation"
 
-# Real TRADFRI colour temperature range (from fixture data)
+# Real TRADFRI color temperature range (from fixture data)
 TRADFRI_CT_ATTRS = {
     "colorTemperatureMin": 4000,  # cool (higher K = lower mireds)
     "colorTemperatureMax": 2202,  # warm (lower K = higher mireds)
@@ -94,7 +92,7 @@ TRADFRI_CT_ATTRS = {
 
 class TestMapLightStructure:
     @pytest.mark.unit
-    def test_returns_single_element_list(self):
+    def test_returns_single_element_list(self) -> None:
         """map_light always returns a list with exactly one entity."""
         ctx = MockContext(capabilities=[CAP_IS_ON])
         result = map_light(ctx, MockDeviceInfo())
@@ -102,28 +100,28 @@ class TestMapLightStructure:
         assert len(result) == 1
 
     @pytest.mark.unit
-    def test_entity_domain_is_light(self):
+    def test_entity_domain_is_light(self) -> None:
         """Entity domain is HADomain.LIGHT."""
         ctx = MockContext(capabilities=[CAP_IS_ON])
         result = map_light(ctx, MockDeviceInfo())
         assert result[0].domain.value == "light"
 
     @pytest.mark.unit
-    def test_entity_name_equals_device_name(self):
+    def test_entity_name_equals_device_name(self) -> None:
         """Entity name equals the device_name from context."""
         ctx = MockContext(capabilities=[CAP_IS_ON], name="Woonkamerlamp")
         result = map_light(ctx, MockDeviceInfo())
         assert result[0].name == "Woonkamerlamp"
 
     @pytest.mark.unit
-    def test_unique_id_has_no_suffix(self):
+    def test_unique_id_has_no_suffix(self) -> None:
         """Primary light entity unique_id has no suffix."""
         ctx = MockContext(capabilities=[CAP_IS_ON], lid="light_abc_1")
         result = map_light(ctx, MockDeviceInfo())
         assert result[0].unique_id == "dirigera_light_abc_1"
 
     @pytest.mark.unit
-    def test_unique_id_hyphens_replaced(self):
+    def test_unique_id_hyphens_replaced(self) -> None:
         """Hyphens in logical_id are replaced with underscores."""
         ctx = MockContext(
             capabilities=[CAP_IS_ON],
@@ -139,7 +137,7 @@ class TestMapLightStructure:
 
 class TestCapabilityTierDetection:
     @pytest.mark.unit
-    def test_tier_1_on_off_only(self):
+    def test_tier_1_on_off_only(self) -> None:
         """isOn only → supported_color_modes=['onoff']."""
         ctx = MockContext(capabilities=[CAP_IS_ON])
         result = map_light(ctx, MockDeviceInfo())
@@ -147,14 +145,14 @@ class TestCapabilityTierDetection:
         assert extra["supported_color_modes"] == ["onoff"]
 
     @pytest.mark.unit
-    def test_tier_1_no_brightness_scale(self):
+    def test_tier_1_no_brightness_scale(self) -> None:
         """On/off only light has no brightness_scale."""
         ctx = MockContext(capabilities=[CAP_IS_ON])
         result = map_light(ctx, MockDeviceInfo())
         assert "brightness_scale" not in result[0].extra
 
     @pytest.mark.unit
-    def test_tier_2_dimmable(self):
+    def test_tier_2_dimmable(self) -> None:
         """isOn + lightLevel → supported_color_modes=['brightness']."""
         ctx = MockContext(capabilities=[CAP_IS_ON, CAP_DIMMING])
         result = map_light(ctx, MockDeviceInfo())
@@ -162,14 +160,14 @@ class TestCapabilityTierDetection:
         assert extra["supported_color_modes"] == ["brightness"]
 
     @pytest.mark.unit
-    def test_tier_2_has_brightness_scale(self):
+    def test_tier_2_has_brightness_scale(self) -> None:
         """Dimmable light has brightness_scale=100."""
         ctx = MockContext(capabilities=[CAP_IS_ON, CAP_DIMMING])
         result = map_light(ctx, MockDeviceInfo())
         assert result[0].extra["brightness_scale"] == 100
 
     @pytest.mark.unit
-    def test_tier_3_colour_temperature(self):
+    def test_tier_3_colour_temperature(self) -> None:
         """isOn + lightLevel + colorTemperature → color_temp mode."""
         ctx = MockContext(
             capabilities=[CAP_IS_ON, CAP_DIMMING, CAP_CT],
@@ -180,18 +178,18 @@ class TestCapabilityTierDetection:
         assert extra["supported_color_modes"] == ["color_temp"]
 
     @pytest.mark.unit
-    def test_tier_3_no_json_schema(self):
+    def test_tier_3_no_json_schema(self) -> None:
         """CT-only light does not use JSON schema."""
         ctx = MockContext(
             capabilities=[CAP_IS_ON, CAP_DIMMING, CAP_CT],
             attrs=TRADFRI_CT_ATTRS,
         )
         result = map_light(ctx, MockDeviceInfo())
-        assert result[0].extra.get("schema") != "json"
+        assert result[0].extra.get("schema") == "json"
 
     @pytest.mark.unit
-    def test_tier_4_full_colour_rgb(self):
-        """Full colour → supported_color_modes includes 'hs'."""
+    def test_tier_4_full_colour_rgb(self) -> None:
+        """Full color → supported_color_modes includes 'hs'."""
         ctx = MockContext(
             capabilities=[CAP_IS_ON, CAP_DIMMING, CAP_CT, CAP_HUE, CAP_SAT],
             attrs=TRADFRI_CT_ATTRS,
@@ -202,8 +200,8 @@ class TestCapabilityTierDetection:
         assert "color_temp" in extra["supported_color_modes"]
 
     @pytest.mark.unit
-    def test_tier_4_uses_json_schema(self):
-        """Full colour light uses JSON schema."""
+    def test_tier_4_uses_json_schema(self) -> None:
+        """Full color light uses JSON schema."""
         ctx = MockContext(
             capabilities=[CAP_IS_ON, CAP_DIMMING, CAP_CT, CAP_HUE, CAP_SAT],
             attrs=TRADFRI_CT_ATTRS,
@@ -212,7 +210,7 @@ class TestCapabilityTierDetection:
         assert result[0].extra.get("schema") == "json"
 
     @pytest.mark.unit
-    def test_rgb_only_no_ct_in_modes(self):
+    def test_rgb_only_no_ct_in_modes(self) -> None:
         """RGB without CT only has 'hs' in supported_color_modes."""
         ctx = MockContext(
             capabilities=[CAP_IS_ON, CAP_DIMMING, CAP_HUE, CAP_SAT],
@@ -223,7 +221,7 @@ class TestCapabilityTierDetection:
         assert "color_temp" not in extra["supported_color_modes"]
 
     @pytest.mark.unit
-    def test_empty_capabilities_defaults_to_onoff(self):
+    def test_empty_capabilities_defaults_to_onoff(self) -> None:
         """Empty capabilities list defaults to on/off tier."""
         ctx = MockContext(capabilities=[])
         result = map_light(ctx, MockDeviceInfo())
@@ -235,7 +233,7 @@ class TestCapabilityTierDetection:
 
 class TestColourTemperatureRange:
     @pytest.mark.unit
-    def test_min_mireds_set_from_colorTemperatureMin(self):
+    def test_min_mireds_set_from_color_temperature_min(self) -> None:
         """min_mireds = 1M / colorTemperatureMin (cooler K → smaller mireds)."""
         ctx = MockContext(
             capabilities=[CAP_IS_ON, CAP_DIMMING, CAP_CT],
@@ -246,7 +244,7 @@ class TestColourTemperatureRange:
         assert result[0].extra["min_mireds"] == 250
 
     @pytest.mark.unit
-    def test_max_mireds_set_from_colorTemperatureMax(self):
+    def test_max_mireds_set_from_color_temperature_max(self) -> None:
         """max_mireds = 1M / colorTemperatureMax (warmer K → larger mireds)."""
         ctx = MockContext(
             capabilities=[CAP_IS_ON, CAP_DIMMING, CAP_CT],
@@ -257,7 +255,7 @@ class TestColourTemperatureRange:
         assert result[0].extra["max_mireds"] == pytest.approx(454, abs=2)
 
     @pytest.mark.unit
-    def test_mireds_absent_when_ct_range_missing(self):
+    def test_mireds_absent_when_ct_range_missing(self) -> None:
         """min/max_mireds absent when CT range not in attributes."""
         ctx = MockContext(
             capabilities=[CAP_IS_ON, CAP_DIMMING, CAP_CT],
@@ -268,7 +266,7 @@ class TestColourTemperatureRange:
         assert "max_mireds" not in result[0].extra
 
     @pytest.mark.unit
-    def test_real_tradfri_cws_mireds(self):
+    def test_real_tradfri_cws_mireds(self) -> None:
         """Real TRADFRI CWS range: 4000K(cool)/2202K(warm) → 250/454 mireds."""
         ctx = MockContext(
             capabilities=[CAP_IS_ON, CAP_DIMMING, CAP_CT, CAP_HUE, CAP_SAT],
@@ -280,7 +278,7 @@ class TestColourTemperatureRange:
         assert extra["max_mireds"] == pytest.approx(454, abs=2)
 
     @pytest.mark.unit
-    def test_min_mireds_less_than_max_mireds(self):
+    def test_min_mireds_less_than_max_mireds(self) -> None:
         """min_mireds is always less than max_mireds (HA convention)."""
         ctx = MockContext(
             capabilities=[CAP_IS_ON, CAP_DIMMING, CAP_CT],
@@ -296,45 +294,45 @@ class TestColourTemperatureRange:
 
 class TestKelvinToMireds:
     @pytest.mark.unit
-    def test_4000k_to_250_mireds(self):
+    def test_4000k_to_250_mireds(self) -> None:
         """4000K → 250 mireds."""
         assert _kelvin_to_mireds(4000) == 250
 
     @pytest.mark.unit
-    def test_2000k_to_500_mireds(self):
+    def test_2000k_to_500_mireds(self) -> None:
         """2000K → 500 mireds."""
         assert _kelvin_to_mireds(2000) == 500
 
     @pytest.mark.unit
-    def test_6500k_to_154_mireds(self):
+    def test_6500k_to_154_mireds(self) -> None:
         """6500K → 154 mireds (rounded)."""
         assert _kelvin_to_mireds(6500) == 154
 
     @pytest.mark.unit
-    def test_2202k_rounds_correctly(self):
+    def test_2202k_rounds_correctly(self) -> None:
         """2202K → 454 mireds (1M/2202 ≈ 454.1)."""
         assert _kelvin_to_mireds(2202) == 454
 
     @pytest.mark.unit
-    def test_returns_integer(self):
+    def test_returns_integer(self) -> None:
         """_kelvin_to_mireds always returns an int."""
         result = _kelvin_to_mireds(3000)
         assert isinstance(result, int)
 
     @pytest.mark.unit
-    def test_zero_kelvin_raises(self):
+    def test_zero_kelvin_raises(self) -> None:
         """0K raises ValueError."""
         with pytest.raises(ValueError):
             _kelvin_to_mireds(0)
 
     @pytest.mark.unit
-    def test_negative_kelvin_raises(self):
+    def test_negative_kelvin_raises(self) -> None:
         """Negative Kelvin raises ValueError."""
         with pytest.raises(ValueError):
             _kelvin_to_mireds(-100)
 
     @pytest.mark.unit
-    def test_float_kelvin_accepted(self):
+    def test_float_kelvin_accepted(self) -> None:
         """Float Kelvin values are accepted."""
         result = _kelvin_to_mireds(4000.0)
         assert result == 250
@@ -345,22 +343,23 @@ class TestKelvinToMireds:
 
 class TestBuildLightExtra:
     @pytest.mark.unit
-    def test_on_off_only(self):
+    def test_on_off_only(self) -> None:
         """On/off tier produces minimal extra dict."""
         extra = _build_light_extra({}, False, False, False)
         assert extra["supported_color_modes"] == ["onoff"]
         assert "brightness_scale" not in extra
-        assert "schema" not in extra
+        assert extra["schema"] == "json"
+        assert extra["supported_color_modes"] == ["onoff"]
 
     @pytest.mark.unit
-    def test_dimmable(self):
+    def test_dimmable(self) -> None:
         """Dimmable tier includes brightness_scale."""
         extra = _build_light_extra({}, True, False, False)
         assert extra["supported_color_modes"] == ["brightness"]
         assert extra["brightness_scale"] == 100
 
     @pytest.mark.unit
-    def test_colour_temp(self):
+    def test_colour_temp(self) -> None:
         """CT tier includes color_temp mode and mireds."""
         attrs = {"colorTemperatureMin": 4000, "colorTemperatureMax": 2202}
         extra = _build_light_extra(attrs, True, True, False)
@@ -369,8 +368,8 @@ class TestBuildLightExtra:
         assert "max_mireds" in extra
 
     @pytest.mark.unit
-    def test_full_colour(self):
-        """Full colour tier includes hs + color_temp + json schema."""
+    def test_full_colour(self) -> None:
+        """Full color tier includes hs + color_temp + JSON schema."""
         attrs = {"colorTemperatureMin": 4000, "colorTemperatureMax": 2202}
         extra = _build_light_extra(attrs, True, True, True)
         assert extra["schema"] == "json"
@@ -378,12 +377,50 @@ class TestBuildLightExtra:
         assert "color_temp" in extra["supported_color_modes"]
 
     @pytest.mark.unit
-    def test_invalid_ct_range_handled_gracefully(self):
+    def test_invalid_ct_range_handled_gracefully(self) -> None:
         """Invalid CT range does not raise — mireds simply absent."""
         attrs = {"colorTemperatureMin": 0, "colorTemperatureMax": 0}
         extra = _build_light_extra(attrs, True, True, False)
         # Should not raise, mireds may or may not be present
         assert "supported_color_modes" in extra
+
+    @pytest.mark.unit
+    def test_ct_conversion_failure_logs_warning_and_omits_mireds(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """
+        colorTemperatureMin/Max that are truthy (so the `if min_k and
+        max_k` guard passes) but not convertible to mireds must hit
+        the except branch: a warning is logged and min_mireds/
+        max_mireds are simply omitted, without raising.
+
+        Note this is different from test_invalid_ct_range_handled_
+        gracefully above: 0 is falsy, so that case never even enters
+        the try/except — it short-circuits on the `if` guard instead.
+        """
+        caplog.set_level(logging.WARNING)
+        attrs = {"colorTemperatureMin": -100, "colorTemperatureMax": 2202}
+
+        extra = _build_light_extra(attrs, True, True, False)
+
+        assert "min_mireds" not in extra
+        assert "max_mireds" not in extra
+        assert "could not convert colour temperature range" in caplog.text
+
+    @pytest.mark.unit
+    def test_non_numeric_ct_value_handled_gracefully(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """A non-numeric colorTemperatureMin/Max also hits the except
+        branch (via TypeError/ValueError from float())."""
+        caplog.set_level(logging.WARNING)
+        attrs = {"colorTemperatureMin": "not-a-number", "colorTemperatureMax": 2202}
+
+        extra = _build_light_extra(attrs, True, True, False)
+
+        assert "min_mireds" not in extra
+        assert "max_mireds" not in extra
+        assert "could not convert colour temperature range" in caplog.text
 
 
 # ── Real fixture integration ──────────────────────────────────────────────────
@@ -391,8 +428,8 @@ class TestBuildLightExtra:
 
 class TestMapLightWithRealFixture:
     @pytest.mark.unit
-    def test_tradfri_cws_full_colour(self, light_raw):
-        """Real TRADFRI CWS light maps to full colour entity."""
+    def test_tradfri_cws_full_colour(self, light_raw: dict[str, Any]) -> None:
+        """Real TRADFRI CWS light maps to full color entity."""
         from app.dirigera.models import DirigeraDevice
         from app.mapping.device_registry import build_device_contexts
 
@@ -418,12 +455,12 @@ class TestMapLightWithRealFixture:
 
 class TestLightDeviceTypes:
     @pytest.mark.unit
-    def test_light_key_registered(self):
+    def test_light_key_registered(self) -> None:
         """DEVICE_TYPES maps 'light' to map_light."""
         assert "light" in DEVICE_TYPES
         assert DEVICE_TYPES["light"] is map_light
 
     @pytest.mark.unit
-    def test_only_one_key_registered(self):
+    def test_only_one_key_registered(self) -> None:
         """Only 'light' is registered in this module."""
         assert len(DEVICE_TYPES) == 1

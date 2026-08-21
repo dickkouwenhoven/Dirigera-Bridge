@@ -9,8 +9,8 @@ can import from 'app.core' directly rather than from submodules.
 from .discovery_cache import DiscoveryCache
 from .errors import DirigeraBridgeError, ErrorCode
 from .event_bus import AsyncEventBus, DirigeraEvent, EventType
-from .lifecycle import ServiceLifecycle, LifecycleState
-from .metrics import MetricsStore, MetricName
+from .lifecycle import LifecycleState, ServiceLifecycle
+from .metrics import MetricName, MetricsStore
 from .retry import RetryConfig, retry_with_backoff
 from .state_cache import StateCache
 

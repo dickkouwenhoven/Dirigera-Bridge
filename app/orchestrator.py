@@ -70,8 +70,10 @@ Not responsible for:
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
-from typing import Any, Awaitable, Callable, Dict, List, Optional
+from _collections_abc import Awaitable, Callable
+from typing import Any
 
 from ha_mqtt_sdk import Entity
 
@@ -101,6 +103,7 @@ logger = logging.getLogger(__name__)
 _CommandCallback = Callable[[str, str], Awaitable[None]]
 
 
+# noinspection GrazieStyle
 class Orchestrator:
     """
     Wires all application layers together and drives the service
@@ -151,13 +154,13 @@ class Orchestrator:
         self._command_mapper = command_mapper
 
         # Registered entities: unique_id → Entity
-        self._entities: Dict[str, Entity] = {}
+        self._entities: dict[str, Entity] = {}
 
         # Background task handle
-        self._metrics_task: Optional[asyncio.Task] = None
+        self._metrics_task: asyncio.Task[None] | None = None
 
         # Dedicated tracking dict
-        self._last_reachable: Dict[str, bool] = {}
+        self._last_reachable: dict[str, bool] = {}
 
         logger.debug("Orchestrator initialised")
 
@@ -266,8 +269,7 @@ class Orchestrator:
         )
 
         logger.info(
-            "Orchestrator: startup complete — bridge is RUNNING. "
-            "Supported device types: %s",
+            "Orchestrator: startup complete — bridge is RUNNING. Supported device types: %s",
             self._device_mapper.supported_device_types(),
         )
 
@@ -287,7 +289,7 @@ class Orchestrator:
                 ErrorCode.LIFECYCLE_STARTUP_FAILED,
                 f"Failed to fetch devices from Dirigera: {exc}",
                 cause=exc,
-            )
+            ) from exc
 
         # ── Build DeviceContexts ──────────────────────────────────────────
         regular_contexts, gateway_contexts = build_device_contexts(devices)
@@ -357,7 +359,7 @@ class Orchestrator:
 
     async def _publish_initial_state(
         self,
-        devices: List[DirigeraDevice],
+        devices: list[DirigeraDevice],
     ) -> None:
         """
         Publish every device's current REST-discovered attributes to
@@ -374,34 +376,36 @@ class Orchestrator:
         until the first real-world change happened to occur after
         the bridge started - confirmed from real HA MQTT debug panels
         showing exactly 0 state messages received for these entities
-        despite corect registration and availability.
+        despite correct registration and availability.
+
+        Also, explicitly publishes each device's own is_reachable
+        field, separate from the raw_attributes loop below -
+        isReachable is a top-level sibling field on Dirigera's device
+        JSON, never nested inside "attributes" (confirmed from real
+        captured REST payloads: {'id': ..., 'isReachable': False,
+        ..., 'attributes': {...}}), so the ordinary loop never covers
+        it. Some domains (gateway, speaker) expose this as their own
+        dedicated "_reachable" sub-entity - without this, that
+        sub-entity had no value source at all until a live
+        DEVICE_REACHABLE/UNREACHABLE event happened to fire, which
+        for some devices (e.g. the gateway reporting its own
+        reachability to itself) may never actually happen over the
+        WebSocket at all.
 
         Reuses _process_attribute_change(..., force=True) - the same
         dedup-bypass path already proven correct for
         _on_device_reachable()'s reconnect refresh - so this needs no
         new publish logic, and each attribute is still individually
         mapped and dropped correctly if unmapped/internal
-        (map_state() returning None), exaclty as during live
+        (map_state() returning None), exactly as during live
         operation.
 
-        Usess the devices list already fetched by
+        Uses the devices list already fetched by
         _discover_and_register_devices() (no extra REST calls), and
-        runs AFTER registration so self._entities looksup succeed.
+        runs AFTER registration so self._entities looks up succeed.
 
         Args:
             devices: Raw device list from rest_client.get_devices().
-
-        Also explicitly publishes each device's own is_reachable
-        field, seperate from the raw_attributes loop below -
-        isReachable is a top-level sibling field on Dirigera's device
-        JSON, never nested inside "attributes", so the ordinary loop
-        never converse it. Some domains (gateway, speaker) expose this
-        as their own dedicated "_reachable" sub-entity - without this,
-        that sub-entity had no value source at all until a live
-        DEVICE_REACHABLE/UNREACHABLE event happened to fire, which for
-        some devices (e.g. the gateway reporting its own reachability
-        to itself) may never actually happen over the WebSocket at
-        all.
         """
 
         total_attrs = 0
@@ -425,8 +429,7 @@ class Orchestrator:
                 total_attrs += 1
 
         logger.info(
-            "Orchestrator: initial state published - %d attribute(s) "
-            "across %d device(s)",
+            "Orchestrator: initial state published - %d attribute(s) across %d device(s)",
             total_attrs,
             len(devices),
         )
@@ -496,8 +499,7 @@ class Orchestrator:
         """
 
         logger.info(
-            "Orchestrator: new device discovered (logical_id=%s) "
-            "— re-fetching device list",
+            "Orchestrator: new device discovered (logical_id=%s) — re-fetching device list",
             event.logical_id,
         )
 
@@ -543,7 +545,7 @@ class Orchestrator:
         Handle DEVICE_UNREACHABLE — mark device entities offline and
         republish isReachable for domains with a dedicated
         "_reachable" sub-entity (see _on_device_reachable()'s
-        docstring."""
+        docstring)."""
         logger.info("DEVICE_UNREACHABLE: %s", event.logical_id)
         await self._set_device_availability(event.logical_id, online=False)
 
@@ -573,7 +575,7 @@ class Orchestrator:
                (lifecycle was RECONNECTING). This is the only case
                that needs action here.
 
-        Reacting to case 1 as well used to race _startup()'s own
+        Reacting to case 1 as well-used to race _startup()'s own
         sequential registration pass — both would fetch and register
         the same devices concurrently, causing "already registered"
         errors, and _startup()'s own final STARTING -> RUNNING
@@ -668,9 +670,7 @@ class Orchestrator:
                 )
                 return
 
-            logger.info(
-                "Send_command: logical_id=%s attributes=%s", logical_id, cmd.attributes
-            )
+            logger.info("Send_command: logical_id=%s attributes=%s", logical_id, cmd.attributes)
             # ── Send to Dirigera REST API ─────────────────────────────────
             try:
                 await self._rest_client.send_command(
@@ -687,7 +687,7 @@ class Orchestrator:
                 )
                 self._metrics.increment(MetricName.ERROR_REST)
 
-        return _handle_command  # type: ignore[return-value]
+        return _handle_command
 
     # ── Helpers ───────────────────────────────────────────────────────────
 
@@ -787,10 +787,8 @@ class Orchestrator:
         # ── Cancel metrics task ───────────────────────────────────────────
         if self._metrics_task and not self._metrics_task.done():
             self._metrics_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self._metrics_task
-            except asyncio.CancelledError:
-                pass
 
         # ── Mark all entities offline ─────────────────────────────────────
         if self._entities:
@@ -952,17 +950,15 @@ class Orchestrator:
         either way. Used by _on_device_reachable()'s reconnect
         refresh: the cache only reflects what THIS bridge last wrote
         locally, not what HA actually received. Confirmed against
-        real captured logs that reconnect's REST-refreshed isOn
+        real captured logs that reconnects REST-refreshed isOn
         value can exactly match the cache's stale value even though
         HA never received it - normal dedup would then wrongly
-        suppress the exact publish this refresh exists to send.
+        suppress the exact publishing this refresh exists to send.
         """
         # ── Deduplication ─────────────────────────────────────────────────
         logger.info("PROCESS %s %s=%r", logical_id, attribute, value)
         changed = self._state_cache.set(logical_id, attribute, value)
-        logger.info(
-            "DEDUP %s %s changed=%s force=%s", logical_id, attribute, changed, force
-        )
+        logger.info("DEDUP %s %s changed=%s force=%s", logical_id, attribute, changed, force)
         if not changed and not force:
             logger.debug(
                 "Orchestrator: unchanged state for %s.%s = %r — skipping",

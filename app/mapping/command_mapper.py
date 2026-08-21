@@ -65,7 +65,7 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any, Dict, NamedTuple, Optional
+from typing import Any, NamedTuple
 
 from ..core.errors import DirigeraBridgeError, ErrorCode
 
@@ -92,7 +92,7 @@ class CommandPayload(NamedTuple):
     """
 
     logical_id: str
-    attributes: Dict[str, Any]
+    attributes: dict[str, Any]
 
 
 # ── Fan percentage → fanMode mapping ─────────────────────────────────────────
@@ -135,7 +135,7 @@ class CommandMapper:
         logical_id: str,
         device_type: str,
         command_payload: str,
-    ) -> Optional[CommandPayload]:
+    ) -> CommandPayload | None:
         """
         Translate an HA MQTT command payload to a Dirigera attribute
         update dict.
@@ -179,8 +179,7 @@ class CommandMapper:
             )
 
         logger.debug(
-            "map_command: routing command for device_type='%s' "
-            "(logical_id=%s, payload=%r)",
+            "map_command: routing command for device_type='%s' (logical_id=%s, payload=%r)",
             device_type,
             logical_id,
             command_payload[:100],  # truncate for log safety
@@ -228,8 +227,7 @@ class CommandMapper:
             "gateway",
         ):
             logger.debug(
-                "map_command: device_type='%s' is read-only — "
-                "no command sent (logical_id=%s)",
+                "map_command: device_type='%s' is read-only — no command sent (logical_id=%s)",
                 device_type,
                 logical_id,
             )
@@ -248,7 +246,7 @@ class CommandMapper:
     def _map_light_command(
         logical_id: str,
         command_payload: str,
-    ) -> Optional[CommandPayload]:
+    ) -> CommandPayload | None:
         """
         Translate HA light commands to Dirigera attribute updates.
 
@@ -282,7 +280,7 @@ class CommandMapper:
         # ── Try JSON payload ──────────────────────────────────────────────
         parsed = _try_parse_json(payload)
         if parsed is not None and isinstance(parsed, dict):
-            attributes: Dict[str, Any] = {}
+            attributes: dict[str, Any] = {}
 
             # ── On/off from JSON ──────────────────────────────────────────
             if "state" in parsed:
@@ -333,7 +331,7 @@ class CommandMapper:
     def _map_switch_command(
         logical_id: str,
         command_payload: str,
-    ) -> Optional[CommandPayload]:
+    ) -> CommandPayload | None:
         """
         Translate HA switch/outlet ON/OFF commands to Dirigera isOn.
 
@@ -364,7 +362,7 @@ class CommandMapper:
     def _map_blind_command(
         logical_id: str,
         command_payload: str,
-    ) -> Optional[CommandPayload]:
+    ) -> CommandPayload | None:
         """
         Translate HA cover commands to Dirigera blind attribute updates.
 
@@ -427,7 +425,7 @@ class CommandMapper:
     def _map_air_purifier_command(
         logical_id: str,
         command_payload: str,
-    ) -> Optional[CommandPayload]:
+    ) -> CommandPayload | None:
         """
         Translate HA fan commands to Dirigera airPurifier attribute
         updates.
@@ -477,7 +475,7 @@ class CommandMapper:
     def _map_speaker_command(
         logical_id: str,
         command_payload: str,
-    ) -> Optional[CommandPayload]:
+    ) -> CommandPayload | None:
         """
         Translate HA commands for the composed speaker entities
         (see app/mapping/domains/speaker.py) to Dirigera attribute
@@ -547,7 +545,7 @@ class CommandMapper:
 # ── Module-level pure helpers ─────────────────────────────────────────────────
 
 
-def _try_parse_json(payload: str) -> Optional[Any]:
+def _try_parse_json(payload: str) -> Any | None:
     """
     Attempt to parse a string as JSON.
 

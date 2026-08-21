@@ -19,26 +19,25 @@ from app.core.errors import (
     format_error,
 )
 
-
 # ── ErrorCode tests ───────────────────────────────────────────────────────────
 
 
 class TestErrorCode:
     @pytest.mark.unit
-    def test_all_values_are_strings(self):
+    def test_all_values_are_strings(self) -> None:
         """Every ErrorCode value is a non-empty string."""
         for code in ErrorCode:
             assert isinstance(code.value, str)
             assert len(code.value) > 0
 
     @pytest.mark.unit
-    def test_all_values_are_unique(self):
+    def test_all_values_are_unique(self) -> None:
         """No two ErrorCodes share the same string value."""
         values = [code.value for code in ErrorCode]
         assert len(values) == len(set(values))
 
     @pytest.mark.unit
-    def test_required_categories_present(self):
+    def test_required_categories_present(self) -> None:
         """All six error categories are represented."""
         values = {code.value for code in ErrorCode}
         categories = [
@@ -56,7 +55,7 @@ class TestErrorCode:
             )
 
     @pytest.mark.unit
-    def test_specific_codes_exist(self):
+    def test_specific_codes_exist(self) -> None:
         """Key error codes referenced throughout the codebase exist."""
         required = [
             ErrorCode.CONFIG_MISSING_FIELD,
@@ -77,7 +76,7 @@ class TestErrorCode:
             assert isinstance(code, ErrorCode)
 
     @pytest.mark.unit
-    def test_error_code_is_str_subclass(self):
+    def test_error_code_is_str_subclass(self) -> None:
         """ErrorCode inherits from str so it can be used in f-strings."""
         code = ErrorCode.WS_CONNECTION_FAILED
         assert isinstance(code, str)
@@ -89,7 +88,7 @@ class TestErrorCode:
 
 class TestDirigeraBridgeErrorConstruction:
     @pytest.mark.unit
-    def test_basic_construction(self):
+    def test_basic_construction(self) -> None:
         """Can construct with code and message."""
         err = DirigeraBridgeError(
             ErrorCode.WS_CONNECTION_FAILED,
@@ -100,7 +99,7 @@ class TestDirigeraBridgeErrorConstruction:
         assert err.__cause__ is None
 
     @pytest.mark.unit
-    def test_construction_with_cause(self):
+    def test_construction_with_cause(self) -> None:
         """cause is stored as __cause__ for traceback chaining."""
         original = ConnectionRefusedError("port 8443")
         err = DirigeraBridgeError(
@@ -111,7 +110,7 @@ class TestDirigeraBridgeErrorConstruction:
         assert err.__cause__ is original
 
     @pytest.mark.unit
-    def test_is_exception(self):
+    def test_is_exception(self) -> None:
         """DirigeraBridgeError is a subclass of Exception."""
         err = DirigeraBridgeError(
             ErrorCode.INTERNAL_INVALID_ARGUMENT,
@@ -120,7 +119,7 @@ class TestDirigeraBridgeErrorConstruction:
         assert isinstance(err, Exception)
 
     @pytest.mark.unit
-    def test_can_be_raised_and_caught(self):
+    def test_can_be_raised_and_caught(self) -> None:
         """Can be raised and caught like a regular exception."""
         with pytest.raises(DirigeraBridgeError) as exc_info:
             raise DirigeraBridgeError(
@@ -130,7 +129,7 @@ class TestDirigeraBridgeErrorConstruction:
         assert exc_info.value.code == ErrorCode.MQTT_PUBLISH_FAILED
 
     @pytest.mark.unit
-    def test_can_catch_by_code(self):
+    def test_can_catch_by_code(self) -> None:
         """Callers can inspect .code to handle specific error categories."""
         try:
             raise DirigeraBridgeError(
@@ -147,34 +146,43 @@ class TestDirigeraBridgeErrorConstruction:
 
 class TestDirigeraBridgeErrorValidation:
     @pytest.mark.unit
-    def test_invalid_code_type_raises_type_error(self):
+    def test_invalid_code_type_raises_type_error(self) -> None:
         """Passing a non-ErrorCode as code raises TypeError."""
         with pytest.raises(TypeError):
-            DirigeraBridgeError("NOT_AN_ERROR_CODE", "message")
+            DirigeraBridgeError(
+                "NOT_AN_ERROR_CODE",  # type: ignore[arg-type]
+                "some message",
+            )
 
     @pytest.mark.unit
-    def test_invalid_code_int_raises_type_error(self):
+    def test_invalid_code_int_raises_type_error(self) -> None:
         """Passing an int as code raises TypeError."""
         with pytest.raises(TypeError):
-            DirigeraBridgeError(42, "message")
+            DirigeraBridgeError(
+                "42",  # type: ignore[arg-type]
+                "some message",
+            )
 
     @pytest.mark.unit
-    def test_empty_message_raises_type_error(self):
+    def test_empty_message_raises_type_error(self) -> None:
         """Empty string message raises TypeError."""
         with pytest.raises(TypeError):
             DirigeraBridgeError(ErrorCode.INTERNAL_INVALID_ARGUMENT, "")
 
     @pytest.mark.unit
-    def test_whitespace_message_raises_type_error(self):
+    def test_whitespace_message_raises_type_error(self) -> None:
         """Whitespace-only message raises TypeError."""
         with pytest.raises(TypeError):
             DirigeraBridgeError(ErrorCode.INTERNAL_INVALID_ARGUMENT, "   ")
 
     @pytest.mark.unit
-    def test_none_message_raises_type_error(self):
+    def test_none_message_raises_type_error(self) -> None:
         """None message raises TypeError."""
         with pytest.raises(TypeError):
-            DirigeraBridgeError(ErrorCode.INTERNAL_INVALID_ARGUMENT, None)
+            DirigeraBridgeError(
+                ErrorCode.INTERNAL_INVALID_ARGUMENT,
+                None,  # type: ignore[arg-type]
+            )
 
 
 # ── DirigeraBridgeError string representations ────────────────────────────────
@@ -182,7 +190,7 @@ class TestDirigeraBridgeErrorValidation:
 
 class TestDirigeraBridgeErrorRepresentations:
     @pytest.mark.unit
-    def test_str_includes_code_and_message(self):
+    def test_str_includes_code_and_message(self) -> None:
         """str(error) includes both the error code and the message."""
         err = DirigeraBridgeError(
             ErrorCode.WS_CONNECTION_FAILED,
@@ -193,7 +201,7 @@ class TestDirigeraBridgeErrorRepresentations:
         assert "192.168.1.100" in s
 
     @pytest.mark.unit
-    def test_str_format(self):
+    def test_str_format(self) -> None:
         """str(error) follows the [CODE] message format."""
         err = DirigeraBridgeError(
             ErrorCode.REST_TIMEOUT,
@@ -202,7 +210,7 @@ class TestDirigeraBridgeErrorRepresentations:
         assert str(err) == "[REST_TIMEOUT] Request timed out"
 
     @pytest.mark.unit
-    def test_repr_includes_code_and_message(self):
+    def test_repr_includes_code_and_message(self) -> None:
         """repr(error) includes code and message."""
         err = DirigeraBridgeError(
             ErrorCode.MQTT_CONNECTION_FAILED,
@@ -213,7 +221,7 @@ class TestDirigeraBridgeErrorRepresentations:
         assert "Broker unreachable" in r
 
     @pytest.mark.unit
-    def test_repr_includes_cause_when_present(self):
+    def test_repr_includes_cause_when_present(self) -> None:
         """repr(error) mentions the cause when one is provided."""
         cause = TimeoutError("connection timed out")
         err = DirigeraBridgeError(
@@ -225,7 +233,7 @@ class TestDirigeraBridgeErrorRepresentations:
         assert "cause" in r
 
     @pytest.mark.unit
-    def test_repr_no_cause_when_absent(self):
+    def test_repr_no_cause_when_absent(self) -> None:
         """repr(error) does not mention cause when none is provided."""
         err = DirigeraBridgeError(
             ErrorCode.REST_TIMEOUT,
@@ -240,7 +248,7 @@ class TestDirigeraBridgeErrorRepresentations:
 
 class TestFormatError:
     @pytest.mark.unit
-    def test_format_without_cause(self):
+    def test_format_without_cause(self) -> None:
         """format_error returns [CODE] message for errors without cause."""
         err = DirigeraBridgeError(
             ErrorCode.WS_CONNECTION_FAILED,
@@ -250,7 +258,7 @@ class TestFormatError:
         assert result == "[WS_CONNECTION_FAILED] Cannot connect"
 
     @pytest.mark.unit
-    def test_format_with_cause(self):
+    def test_format_with_cause(self) -> None:
         """format_error includes cause type and message."""
         cause = ConnectionRefusedError("port 8443")
         err = DirigeraBridgeError(
@@ -265,19 +273,19 @@ class TestFormatError:
         assert "8443" in result
 
     @pytest.mark.unit
-    def test_format_error_invalid_input(self):
+    def test_format_error_invalid_input(self) -> None:
         """format_error raises TypeError for non-DirigeraBridgeError input."""
         with pytest.raises(TypeError):
-            format_error(ValueError("not a bridge error"))
+            format_error(ValueError("not a bridge error"))  # type: ignore[arg-type]
 
     @pytest.mark.unit
-    def test_format_error_invalid_none(self):
+    def test_format_error_invalid_none(self) -> None:
         """format_error raises TypeError for None input."""
         with pytest.raises(TypeError):
-            format_error(None)
+            format_error(None)  # type: ignore[arg-type]
 
     @pytest.mark.unit
-    def test_format_error_suitable_for_logging(self):
+    def test_format_error_suitable_for_logging(self) -> None:
         """format_error output is a single-line string suitable for logs."""
         err = DirigeraBridgeError(
             ErrorCode.MAPPING_DEVICE_BUILD_ERROR,
