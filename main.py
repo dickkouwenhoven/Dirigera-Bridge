@@ -37,7 +37,7 @@ import logging
 import signal
 import sys
 
-from app.config import load_settings, Settings
+from app.config import Settings, load_settings
 from app.core.discovery_cache import DiscoveryCache
 from app.core.errors import DirigeraBridgeError
 from app.core.event_bus import AsyncEventBus
