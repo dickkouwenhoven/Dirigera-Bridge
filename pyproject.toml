@@ -12,25 +12,25 @@ license = "MIT"
 license-files = ["LICENSE"]
 
 authors = [
-	{ name = "Dick Kouwenhoven", email = "dick.kouwenhoven@planet.nl" }
+    { name = "Dick Kouwenhoven", email = "dick.kouwenhoven@planet.nl" }
 ]
 
 keywords = [
-	"homeassistant",
-	"mqtt",
-	"iot",
-	"automation",
-	"python",
-	"smarthome",
+    "homeassistant",
+    "mqtt",
+    "iot",
+    "automation",
+    "python",
+    "smarthome",
 ]
 
 classifiers = [
-	"Development Status :: 1 - Beta",
-	"Intended Audience :: Developers",
-	"Topic :: Home Automation",
-	"Programming Language :: Python :: 3.12",
-	"Programming Language :: Python :: 3.13",
-	"Programming Language :: Python :: 3.14",
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Topic :: Home Automation",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
 ]
 
 dependencies = [
