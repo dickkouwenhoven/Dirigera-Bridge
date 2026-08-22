@@ -146,7 +146,7 @@ def map_button(
             )
         )
 
-    logger.info(
+    logger.debug(
         "map_button: mapped '%s' to %d HA entity(ies)",
         name,
         len(entities),
