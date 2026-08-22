@@ -22,7 +22,7 @@ var/
 wheels/
 share/python-wheels/
 *.egg-info/
-app/dirigera_bridge.egg-info/
+dirigera_bridge/dirigera_bridge.egg-info/
 .installed.cfg
 *.egg
 MANIFEST
