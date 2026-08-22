@@ -133,7 +133,7 @@ def map_outlet(
     if attrs.get(_ATTR_TOTAL_ENERGY_CONSUMED) is not None:
         entities.append(_make_energy_sensor(lid, name, device_info))
 
-    logger.info(
+    logger.debug(
         "map_outlet: mapped outlet '%s' to %d HA entity(ies)",
         name,
         len(entities),
