@@ -25,8 +25,8 @@ inside Docker:
 
 Run it directly with the project's existing venv:
     source .venv/bin/activate
-    Python scripts/generate_dirigera_token.py
-    # or: Python scripts/generate_dirigera_token.py --ip 192.168.1.50
+    python scripts/generate_dirigera_token.py
+    # or: python scripts/generate_dirigera_token.py --ip 192.168.1.50
 
 CONFIRMED vs inferred — this was checked against real source code
 (lpgera/dirigera, a maintained open-source TypeScript client with a
