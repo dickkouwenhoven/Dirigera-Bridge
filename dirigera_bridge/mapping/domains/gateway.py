@@ -237,7 +237,7 @@ def map_gateway(
                 )
             )
 
-    logger.info(
+    logger.debug(
         "map_gateway: mapped gateway '%s' to %d HA entity(ies)",
         context.device_name,
         len(entities),
