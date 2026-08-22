@@ -135,7 +135,7 @@ def map_motion_sensor(
             )
         )
 
-    logger.info(
+    logger.debug(
         "map_motion_sensor: mapped '%s' to %d HA entity(ies)",
         name,
         len(entities),
@@ -199,7 +199,7 @@ def map_water_sensor(
             )
         )
 
-    logger.info(
+    logger.debug(
         "map_water_sensor: mapped '%s' to %d HA entity(ies)",
         name,
         len(entities),
