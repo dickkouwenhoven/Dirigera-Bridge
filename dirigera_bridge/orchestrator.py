@@ -546,7 +546,7 @@ class Orchestrator:
         republish isReachable for domains with a dedicated
         "_reachable" sub-entity (see _on_device_reachable()'s
         docstring)."""
-        logger.info("DEVICE_UNREACHABLE: %s", event.logical_id)
+        logger.info("Orchestrator: device unreachable - %s", event.logical_id)
         await self._set_device_availability(event.logical_id, online=False)
 
         device_type = event.data.get("device_type", "") if event.data else ""
@@ -670,7 +670,11 @@ class Orchestrator:
                 )
                 return
 
-            logger.info("Send_command: logical_id=%s attributes=%s", logical_id, cmd.attributes)
+            logger.debug(
+                "Orchestrator: sending command for %s: %s", 
+                logical_id, 
+                cmd.attributes,
+            )
             # ── Send to Dirigera REST API ─────────────────────────────────
             try:
                 await self._rest_client.send_command(
@@ -705,11 +709,9 @@ class Orchestrator:
         """
         logical_id = logical_id.replace("-", "_")
         for unique_id, entity in self._entities.items():
-            logger.info("logical_id is: %s", logical_id)
-            logger.info("unique_id  is: %s", unique_id)
             if logical_id in unique_id:
                 logger.info(
-                    "Availability: %s -> %s",
+                    "Orchestrator: availability %s -> %s",
                     unique_id,
                     "online" if online else "offline",
                 )
@@ -879,7 +881,7 @@ class Orchestrator:
         _process_attribute_change() call just above it - both would
         otherwise consume the same "did isReachable change" signal.
         """
-        logger.info("DEVICE_REACHABLE: %s", event.logical_id)
+        logger.info("Orchestrator: device reachable - %s", event.logical_id)
         await self._set_device_availability(event.logical_id, online=True)
 
         device_type = event.data.get("device_type", "") if event.data else ""
@@ -902,9 +904,10 @@ class Orchestrator:
 
         try:
             device = await self._rest_client.get_device(event.logical_id)
-            logger.info(
-                "REST refresh: %s attributes=%s",
+            logger.debug(
+                "Orchestrator: REST refresh for %s - %d attribute(s): %s",
                 event.logical_id,
+                len(device.raw_attributes),
                 device.raw_attributes,
             )
         except DirigeraBridgeError as exc:
@@ -915,8 +918,6 @@ class Orchestrator:
             )
             return
 
-        logger.info("raw_attributes contains %d items", len(device.raw_attributes))
-        logger.info("Entering refresh loop")
         for attribute, value in device.raw_attributes.items():
             await self._process_attribute_change(
                 logical_id=event.logical_id,
@@ -956,9 +957,7 @@ class Orchestrator:
         suppress the exact publishing this refresh exists to send.
         """
         # ── Deduplication ─────────────────────────────────────────────────
-        logger.info("PROCESS %s %s=%r", logical_id, attribute, value)
         changed = self._state_cache.set(logical_id, attribute, value)
-        logger.info("DEDUP %s %s changed=%s force=%s", logical_id, attribute, changed, force)
         if not changed and not force:
             logger.debug(
                 "Orchestrator: unchanged state for %s.%s = %r — skipping",
@@ -968,6 +967,15 @@ class Orchestrator:
             )
             return
 
+        logger.debug(
+            "Orchestrator: processing %s.%s = %r (changed=%s force=%s)",
+            logical_id,
+            attribute,
+            value,
+            changed,
+            force,
+        )
+
         # ── Map to HA payload ─────────────────────────────────────────────
         state_payload = self._state_mapper.map_state(
             logical_id=logical_id,
@@ -976,8 +984,8 @@ class Orchestrator:
             value=value,
             device_attributes=self._state_cache.get_device_state(logical_id),
         )
-        logger.info(
-            "MAPPER %s %s -> %r",
+        logger.debug(
+            "Orchestrator: %s.%s mapped -> %r",
             logical_id,
             attribute,
             state_payload,
@@ -1002,7 +1010,7 @@ class Orchestrator:
             )
             return
         logger.info(
-            "MQTT %s payload=%s",
+            "Orchestrator: publishing %s payload=%s",
             state_payload.unique_id,
             state_payload.payload,
         )
