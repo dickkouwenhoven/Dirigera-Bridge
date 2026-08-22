@@ -136,7 +136,7 @@ def map_environment_sensor(
     if attrs.get(_ATTR_VOC_INDEX) is not None:
         entities.append(_make_voc_sensor(lid, name, device_info))
 
-    logger.info(
+    logger.debug(
         "map_environment_sensor: mapped '%s' to %d HA entity(ies)",
         name,
         len(entities),
