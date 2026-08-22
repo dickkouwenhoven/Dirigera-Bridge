@@ -34,7 +34,6 @@ classifiers = [
 ]
 
 dependencies = [
-	"paho-mqtt>=2.1.0",
 	"aiohttp>=3.9,<4.0",
 	"aiomqtt>=2.5.1,<3.0",
 	"ha_mqtt_sdk>=0.8.4,<2.0",
