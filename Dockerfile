@@ -80,7 +80,6 @@ COPY --from=builder /install /usr/local
 
 # Copy application source
 COPY --chown=bridge:bridge dirigera_bridge/     ./dirigera_bridge/
-COPY --chown=bridge:bridge main.py  ./main.py
 
 # Switch to non-root user
 USER bridge
