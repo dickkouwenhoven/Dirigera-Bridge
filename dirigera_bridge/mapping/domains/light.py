@@ -170,7 +170,7 @@ def map_light(
         extra={**extra, "has_entity_name": True},
     )
 
-    logger.info(
+    logger.debug(
         "map_light: mapped light '%s' (dimming=%s, color_temp=%s, rgb=%s)",
         context.device_name,
         has_dimming,
