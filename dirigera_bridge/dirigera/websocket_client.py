@@ -415,10 +415,9 @@ class DirigeraWebSocketClient:
             message = raw_message.decode("utf-8") if isinstance(raw_message, bytes) else raw_message
 
             logger.debug(
-                "DirigeraWebSocketClient: raw message received (len=%d)",
-                len(message),
+                "DirigeraWebSocketClient: raw message received: %s",
+                message,
             )
-            logger.info("DirigeraWebSocketClient message: %s", message)
 
             # ── Parse and dispatch ────────────────────────────────────────
             await self._handle_message(message)
