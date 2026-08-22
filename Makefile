@@ -18,8 +18,8 @@
 # Python interpreter — use python3 if python is not available
 PYTHON     := python
 PYTEST     := $(PYTHON) -m pytest
-COVERAGE   := $(PYTHON) -m pytest --cov=app --cov-report=term-missing
-COV_HTML   := $(PYTHON) -m pytest --cov=app --cov-report=html
+COVERAGE   := $(PYTHON) -m pytest --cov=dirigera_bridge --cov-report=term-missing
+COV_HTML   := $(PYTHON) -m pytest --cov=dirigera_bridge --cov-report=html
 RUFF       := $(PYTHON) -m ruff
 MYPY       := $(PYTHON) -m mypy
 
@@ -59,13 +59,13 @@ coverage-html:
 
 # ── Code quality ──────────────────────────────────────────────────────────────
 
-## Run ruff linter on app/ and tests/
+## Run ruff linter on dirigera_bridge/ and tests/
 lint:
-	$(RUFF) check app/ tests/
+	$(RUFF) check dirigera_bridge/ tests/
 
-## Run mypy type checker on app/
+## Run mypy type checker on dirigera_bridge/
 typecheck:
-	$(MYPY) app/ --ignore-missing-imports --strict
+	$(MYPY) dirigera_bridge/ --ignore-missing-imports --strict
 
 # ── Setup ─────────────────────────────────────────────────────────────────────
 

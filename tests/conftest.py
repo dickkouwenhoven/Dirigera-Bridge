@@ -20,12 +20,12 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from _pytest.monkeypatch import MonkeyPatch
 
-from app.config import Settings
-from app.core.discovery_cache import DiscoveryCache
-from app.core.event_bus import AsyncEventBus
-from app.core.lifecycle import ServiceLifecycle
-from app.core.metrics import MetricsStore
-from app.core.state_cache import StateCache
+from dirigera_bridge.config import Settings
+from dirigera_bridge.core.discovery_cache import DiscoveryCache
+from dirigera_bridge.core.event_bus import AsyncEventBus
+from dirigera_bridge.core.lifecycle import ServiceLifecycle
+from dirigera_bridge.core.metrics import MetricsStore
+from dirigera_bridge.core.state_cache import StateCache
 
 # ── Settings fixture ──────────────────────────────────────────────────────────
 
@@ -44,7 +44,7 @@ def isolate_dotenv(monkeypatch: MonkeyPatch) -> None:
     from whatever happens to exist on disk.
     """
 
-    monkeypatch.setattr("app.config.load_dotenv", lambda *args, **kwargs: False)
+    monkeypatch.setattr("dirigera_bridge.config.load_dotenv", lambda *args, **kwargs: False)
 
 
 @pytest.fixture
@@ -87,14 +87,14 @@ def settings(valid_env: None) -> Settings:
     Resets the config singleton after each test.
     """
 
-    from app.config import load_settings
+    from dirigera_bridge.config import load_settings
 
     return load_settings()
 
 
 @pytest.fixture(autouse=True)
 def reset_settings_singelton() -> Generator[None, Any, None]:
-    import app.config as cfg
+    import dirigera_bridge.config as cfg
 
     cfg._settings = None
     yield

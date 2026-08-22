@@ -29,8 +29,8 @@ from typing import Any
 import pytest
 from ha_mqtt_sdk import DeviceInfo
 
-from app.mapping import DeviceContext
-from app.mapping.domains.speaker import DEVICE_TYPES, map_speaker
+from dirigera_bridge.mapping import DeviceContext
+from dirigera_bridge.mapping.domains.speaker import DEVICE_TYPES, map_speaker
 
 
 class MockDeviceInfo(DeviceInfo):

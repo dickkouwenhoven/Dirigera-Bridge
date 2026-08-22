@@ -37,20 +37,20 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from ha_mqtt_sdk import Entity
 
-from app.config import Settings
-from app.core.discovery_cache import DiscoveryCache
-from app.core.errors import DirigeraBridgeError, ErrorCode
-from app.core.event_bus import AsyncEventBus, DirigeraEvent, EventType
-from app.core.lifecycle import LifecycleState, ServiceLifecycle
-from app.core.metrics import MetricsStore
-from app.core.state_cache import StateCache
-from app.dirigera.models import DirigeraDevice
-from app.mapping.command_mapper import CommandMapper
-from app.mapping.device_mapper import DeviceMapper
-from app.mapping.device_registry import DeviceContext
-from app.mapping.domains import make_unique_id
-from app.mapping.state_mapper import StateMapper
-from app.orchestrator import Orchestrator
+from dirigera_bridge.config import Settings
+from dirigera_bridge.core.discovery_cache import DiscoveryCache
+from dirigera_bridge.core.errors import DirigeraBridgeError, ErrorCode
+from dirigera_bridge.core.event_bus import AsyncEventBus, DirigeraEvent, EventType
+from dirigera_bridge.core.lifecycle import LifecycleState, ServiceLifecycle
+from dirigera_bridge.core.metrics import MetricsStore
+from dirigera_bridge.core.state_cache import StateCache
+from dirigera_bridge.dirigera.models import DirigeraDevice
+from dirigera_bridge.mapping.command_mapper import CommandMapper
+from dirigera_bridge.mapping.device_mapper import DeviceMapper
+from dirigera_bridge.mapping.device_registry import DeviceContext
+from dirigera_bridge.mapping.domains import make_unique_id
+from dirigera_bridge.mapping.state_mapper import StateMapper
+from dirigera_bridge.orchestrator import Orchestrator
 
 # ── Shared fixtures ───────────────────────────────────────────────────────────
 
@@ -81,7 +81,7 @@ def mock_device_mapper(mock_entity: Entity) -> MagicMock:
 @pytest.fixture
 def mock_rest_client(light_raw: dict[str, Any]) -> MagicMock:
     """DirigeraRestClient that returns one light device."""
-    from app.dirigera.models import DirigeraDevice
+    from dirigera_bridge.dirigera.models import DirigeraDevice
 
     device = DirigeraDevice.model_validate(light_raw)
 
@@ -792,7 +792,7 @@ class TestOrchestratorUncoveredPaths:
     async def test_register_context_skips_empty_entity_list(
         self, orchestrator: Orchestrator, mock_device_mapper: MagicMock
     ) -> None:
-        from app.mapping.device_registry import DeviceContext
+        from dirigera_bridge.mapping.device_registry import DeviceContext
 
         mock_device_mapper.map_device.return_value = []
         context = MagicMock(spec=DeviceContext, device_name="No entities", device_type="unknown")
@@ -1346,7 +1346,7 @@ class TestMetricsLoop:
     ) -> None:
         monkeypatch.setattr(lifecycle, "is_stopping", MagicMock(side_effect=[False, True]))
         sleep_mock = AsyncMock()
-        monkeypatch.setattr("app.orchestrator.asyncio.sleep", sleep_mock)
+        monkeypatch.setattr("dirigera_bridge.orchestrator.asyncio.sleep", sleep_mock)
 
         await orchestrator._metrics_loop()
 
@@ -1359,7 +1359,7 @@ class TestMetricsLoop:
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         monkeypatch.setattr(lifecycle, "is_stopping", MagicMock(side_effect=[False, False, True]))
-        monkeypatch.setattr("app.orchestrator.asyncio.sleep", AsyncMock())
+        monkeypatch.setattr("dirigera_bridge.orchestrator.asyncio.sleep", AsyncMock())
 
         await orchestrator._metrics_loop()  # must complete without hanging
 
@@ -1388,7 +1388,7 @@ class TestRunUntilStopped:
     ) -> None:
         monkeypatch.setattr(lifecycle, "is_terminal", MagicMock(side_effect=[False, True]))
         sleep_mock = AsyncMock()
-        monkeypatch.setattr("app.orchestrator.asyncio.sleep", sleep_mock)
+        monkeypatch.setattr("dirigera_bridge.orchestrator.asyncio.sleep", sleep_mock)
 
         await orchestrator._run_until_stopped()
 

@@ -32,7 +32,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
 # WORKDIR /build
-WORKDIR /app
+WORKDIR /dirigera_bridge
 
 # Install system build dependencies needed to compile any C extensions
 # (e.g. aiohttp uses optional C accelerators on ARM64)
@@ -65,7 +65,7 @@ LABEL maintainer="Dick Kouwenhoven" \
 # Runtime environment
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PYTHONPATH=/app \
+    PYTHONPATH=/dirigera_bridge \
     PATH="/install/bin:$PATH"
 
 # Create a non-root user for security.
@@ -73,13 +73,13 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 RUN groupadd --gid 1001 bridge && \
     useradd --uid 1001 --gid bridge --shell /bin/bash --create-home bridge
 
-WORKDIR /app
+WORKDIR /dirigera_bridge
 
 # Copy installed Python packages from builder stage
 COPY --from=builder /install /usr/local
 
 # Copy application source
-COPY --chown=bridge:bridge app/     ./app/
+COPY --chown=bridge:bridge dirigera_bridge/     ./dirigera_bridge/
 COPY --chown=bridge:bridge main.py  ./main.py
 
 # Switch to non-root user
@@ -88,7 +88,7 @@ USER bridge
 # Health check — verify the Python environment is functional.
 # Does not check network connectivity (the orchestrator handles reconnect).
 HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
-    CMD python -c "import ha_mqtt_sdk, app.config; print('ok')" || exit 1
+    CMD python -c "import ha_mqtt_sdk, dirigera_bridge.config; print('ok')" || exit 1
 
 # The .env file is NOT copied into the image — it is mounted at runtime
 # via docker-compose env_file directive. This prevents secrets from being

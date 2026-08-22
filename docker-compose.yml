@@ -86,7 +86,7 @@ services:
     # Mirrors the "HEALTHCHECK" in the Dockerfile. Docker Compose uses this
     # to determine when the container is healthy for depends_on conditions.
     healthcheck:
-      test: ["CMD", "python", "-c", "import app.config; print('ok')"]
+      test: ["CMD", "python", "-c", "import dirigera_bridge.config; print('ok')"]
       interval: 30s
       timeout: 10s
       start_period: 15s

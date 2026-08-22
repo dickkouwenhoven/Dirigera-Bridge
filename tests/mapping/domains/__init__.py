@@ -27,10 +27,10 @@ from _pytest.logging import LogCaptureFixture
 from _pytest.monkeypatch import MonkeyPatch
 from ha_mqtt_sdk import DeviceInfo, Entity
 
-from app.core.errors import DirigeraBridgeError
-from app.mapping import DeviceContext
-from app.mapping import domains as domains_module
-from app.mapping.domains import make_battery_entity, make_unique_id
+from dirigera_bridge.core.errors import DirigeraBridgeError
+from dirigera_bridge.mapping import DeviceContext
+from dirigera_bridge.mapping import domains as domains_module
+from dirigera_bridge.mapping.domains import make_battery_entity, make_unique_id
 
 # make_unique_id
 # ──────────────────────────────────────────────────────────────────────────

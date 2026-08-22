@@ -20,8 +20,8 @@ from typing import Any
 import pytest
 from ha_mqtt_sdk import DeviceInfo
 
-from app.mapping import DeviceContext
-from app.mapping.domains.remote import DEVICE_TYPES, map_light_controller
+from dirigera_bridge.mapping import DeviceContext
+from dirigera_bridge.mapping.domains.remote import DEVICE_TYPES, map_light_controller
 
 
 class MockDeviceInfo(DeviceInfo):
@@ -136,8 +136,8 @@ class TestMapLightController:
     @pytest.mark.unit
     def test_real_remote_n2_fixture(self, remote_raw: dict[str, Any]) -> None:
         """Real Remote Control N2 fixture maps correctly."""
-        from app.dirigera.models import DirigeraDevice
-        from app.mapping.device_registry import build_device_contexts
+        from dirigera_bridge.dirigera.models import DirigeraDevice
+        from dirigera_bridge.mapping.device_registry import build_device_contexts
 
         device = DirigeraDevice.model_validate(remote_raw)
         regular, _ = build_device_contexts([device])

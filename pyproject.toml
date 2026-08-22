@@ -67,10 +67,10 @@ Changelog = "https://github.com/dickkouwenhoven/Dirigera-Bridge/releases"
 ha_mqtt_sdk = ["py.typed"]
 
 [tool.setuptools.packages.find]
-where = ["app"]
+where = ["dirigera_bridge"]
 
 [tool.setuptools]
-package-dir = {"" = "app"}
+package-dir = {"" = "dirigera_bridge"}
 
 # -------------------------
 # Optional dev tools
@@ -107,7 +107,7 @@ testpaths = ["tests"]
 python_files = ["test_*.py"]
 
 [tool.coverage.run]
-source = ["app"]
+source = ["dirigera_bridge"]
 branch = true
 
 [tool.coverage.report]
@@ -117,7 +117,7 @@ skip_covered = false
 [tool.mypy]
 python_version = "3.13"
 warn_unused_ignores = true
-# mypy_path = "app"
+# mypy_path = "dirigera_brdige"
 no_implicit_optional = true
 check_untyped_defs = true
 strict = true

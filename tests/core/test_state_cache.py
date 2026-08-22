@@ -24,8 +24,8 @@ from typing import Any
 
 import pytest
 
-from app.core import StateCache
-from app.core.errors import DirigeraBridgeError, ErrorCode
+from dirigera_bridge.core import StateCache
+from dirigera_bridge.core.errors import DirigeraBridgeError, ErrorCode
 
 invalid_state: Any = "not_a_dict"
 

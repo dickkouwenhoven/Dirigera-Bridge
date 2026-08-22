@@ -25,8 +25,8 @@ from typing import Any
 
 import pytest
 
-from app.core.errors import DirigeraBridgeError, ErrorCode
-from app.core.lifecycle import LifecycleState, ServiceLifecycle, StateTransition
+from dirigera_bridge.core.errors import DirigeraBridgeError, ErrorCode
+from dirigera_bridge.core.lifecycle import LifecycleState, ServiceLifecycle, StateTransition
 
 # ── LifecycleState enum ───────────────────────────────────────────────────────
 

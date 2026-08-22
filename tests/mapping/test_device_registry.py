@@ -23,10 +23,10 @@ from typing import Any
 
 import pytest
 
-import app.mapping.device_registry as device_registry_module
-from app.core.errors import DirigeraBridgeError, ErrorCode
-from app.dirigera.models import DirigeraDevice
-from app.mapping.device_registry import (
+import dirigera_bridge.mapping.device_registry as device_registry_module
+from dirigera_bridge.core.errors import DirigeraBridgeError, ErrorCode
+from dirigera_bridge.dirigera.models import DirigeraDevice
+from dirigera_bridge.mapping.device_registry import (
     DeviceContext,
     build_device_contexts,
 )
@@ -86,7 +86,7 @@ def make_device(
 
 def parse_devices(raw_list: Any) -> list[DirigeraDevice]:
     """Parse a list of raw dicts into DirigeraDevice objects."""
-    from app.dirigera.models import DirigeraDevice
+    from dirigera_bridge.dirigera.models import DirigeraDevice
 
     return [DirigeraDevice.model_validate(d) for d in raw_list]
 

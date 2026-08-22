@@ -20,8 +20,8 @@ from typing import Any
 import pytest
 from _pytest.logging import LogCaptureFixture
 
-from app.core.errors import DirigeraBridgeError, ErrorCode
-from app.core.metrics import MetricName, MetricsStore
+from dirigera_bridge.core.errors import DirigeraBridgeError, ErrorCode
+from dirigera_bridge.core.metrics import MetricName, MetricsStore
 
 invalid_state: Any = "not_a_metric"
 invalid_state2: Any = 1.5

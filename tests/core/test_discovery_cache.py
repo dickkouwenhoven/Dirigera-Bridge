@@ -26,8 +26,8 @@ Covers:
 import pytest
 from ha_mqtt_sdk import HADomain
 
-from app.core.discovery_cache import DiscoveryCache, RegistrationRecord
-from app.core.errors import DirigeraBridgeError, ErrorCode
+from dirigera_bridge.core.discovery_cache import DiscoveryCache, RegistrationRecord
+from dirigera_bridge.core.errors import DirigeraBridgeError, ErrorCode
 
 # ── RegistrationRecord ────────────────────────────────────────────────────────
 

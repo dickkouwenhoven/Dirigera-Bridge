@@ -33,11 +33,11 @@ import websockets
 from websockets import exceptions
 from websockets.protocol import State
 
-from app.config import Settings
-from app.core import AsyncEventBus, ServiceLifecycle
-from app.core.event_bus import DirigeraEvent, EventType
-from app.core.metrics import MetricName, MetricsStore
-from app.dirigera import DirigeraWebSocketClient
+from dirigera_bridge.config import Settings
+from dirigera_bridge.core import AsyncEventBus, ServiceLifecycle
+from dirigera_bridge.core.event_bus import DirigeraEvent, EventType
+from dirigera_bridge.core.metrics import MetricName, MetricsStore
+from dirigera_bridge.dirigera import DirigeraWebSocketClient
 
 
 class WSClientTestDouble:
@@ -55,7 +55,7 @@ class WSClientTestDouble:
         lifecycle: ServiceLifecycle,
         metrics: MetricsStore,
     ) -> None:
-        from app.core.retry import RetryConfig
+        from dirigera_bridge.core.retry import RetryConfig
 
         self._settings = settings
         self._event_bus = event_bus
@@ -74,7 +74,7 @@ class WSClientTestDouble:
         self._ws_url = f"wss://{settings.dirigera_ip}:8443/v1/events"
 
     # Copy the methods under test directly from the real class
-    from app.dirigera.websocket_client import DirigeraWebSocketClient
+    from dirigera_bridge.dirigera.websocket_client import DirigeraWebSocketClient
 
     is_connected = DirigeraWebSocketClient.is_connected
     stop = DirigeraWebSocketClient.stop
@@ -157,7 +157,7 @@ class TestDirigeraWebSocketClientConstruction:
         metrics: MetricsStore,
     ) -> None:
         """DirigeraWebSocketClient constructs with valid dependencies."""
-        from app.dirigera.websocket_client import DirigeraWebSocketClient
+        from dirigera_bridge.dirigera.websocket_client import DirigeraWebSocketClient
 
         client = DirigeraWebSocketClient(
             settings=settings,
@@ -175,8 +175,8 @@ class TestDirigeraWebSocketClientConstruction:
         metrics: MetricsStore,
     ) -> None:
         """Non-Settings raises INTERNAL_INVALID_ARGUMENT."""
-        from app.core.errors import DirigeraBridgeError, ErrorCode
-        from app.dirigera.websocket_client import DirigeraWebSocketClient
+        from dirigera_bridge.core.errors import DirigeraBridgeError, ErrorCode
+        from dirigera_bridge.dirigera.websocket_client import DirigeraWebSocketClient
 
         with pytest.raises(DirigeraBridgeError) as exc_info:
             DirigeraWebSocketClient(
@@ -195,8 +195,8 @@ class TestDirigeraWebSocketClientConstruction:
         metrics: MetricsStore,
     ) -> None:
         """Non-AsyncEventBus raises INTERNAL_INVALID_ARGUMENT."""
-        from app.core.errors import DirigeraBridgeError, ErrorCode
-        from app.dirigera.websocket_client import DirigeraWebSocketClient
+        from dirigera_bridge.core.errors import DirigeraBridgeError, ErrorCode
+        from dirigera_bridge.dirigera.websocket_client import DirigeraWebSocketClient
 
         with pytest.raises(DirigeraBridgeError) as exc_info:
             DirigeraWebSocketClient(
@@ -215,8 +215,8 @@ class TestDirigeraWebSocketClientConstruction:
         metrics: MetricsStore,
     ) -> None:
         """Non-ServiceLifecycle raises INTERNAL_INVALID_ARGUMENT."""
-        from app.core.errors import DirigeraBridgeError, ErrorCode
-        from app.dirigera.websocket_client import DirigeraWebSocketClient
+        from dirigera_bridge.core.errors import DirigeraBridgeError, ErrorCode
+        from dirigera_bridge.dirigera.websocket_client import DirigeraWebSocketClient
 
         with pytest.raises(DirigeraBridgeError) as exc_info:
             DirigeraWebSocketClient(
@@ -235,8 +235,8 @@ class TestDirigeraWebSocketClientConstruction:
         lifecycle: ServiceLifecycle,
     ) -> None:
         """Non-MetricsStore raises INTERNAL_INVALID_ARGUMENT."""
-        from app.core.errors import DirigeraBridgeError, ErrorCode
-        from app.dirigera.websocket_client import DirigeraWebSocketClient
+        from dirigera_bridge.core.errors import DirigeraBridgeError, ErrorCode
+        from dirigera_bridge.dirigera.websocket_client import DirigeraWebSocketClient
 
         with pytest.raises(DirigeraBridgeError) as exc_info:
             DirigeraWebSocketClient(
@@ -385,7 +385,9 @@ class TestListenAndPingLoops:
         assert ws_client._settings.ws_ping_interval == 30
         assert ws_client._settings.ws_ping_timeout == 10
 
-        with patch("app.dirigera.websocket_client.asyncio.wait_for", side_effect=TimeoutError):
+        with patch(
+            "dirigera_bridge.dirigera.websocket_client.asyncio.wait_for", side_effect=TimeoutError
+        ):
             await ws_client._ping_loop(socket)
 
         socket.close.assert_awaited_once()
@@ -416,7 +418,7 @@ class TestConnectionLoop:
                 ws_client, attribute="_connect_and_listen", new=AsyncMock(side_effect=connect_once)
             ) as connect_and_listen,
             patch(
-                "app.dirigera.websocket_client.retry_with_backoff",
+                "dirigera_bridge.dirigera.websocket_client.retry_with_backoff",
                 return_value=self._attempts(1),
             ),
         ):
@@ -443,7 +445,7 @@ class TestConnectionLoop:
                 new=AsyncMock(side_effect=reconnect_once),
             ),
             patch(
-                "app.dirigera.websocket_client.retry_with_backoff",
+                "dirigera_bridge.dirigera.websocket_client.retry_with_backoff",
                 return_value=self._attempts(2),
             ),
         ):
@@ -468,7 +470,7 @@ class TestConnectionLoop:
                 ws_client, attribute="_publish_connection_event", new=AsyncMock()
             ) as publish_connection_event,
             patch(
-                "app.dirigera.websocket_client.retry_with_backoff",
+                "dirigera_bridge.dirigera.websocket_client.retry_with_backoff",
                 return_value=self._attempts(1),
             ),
         ):
@@ -490,7 +492,7 @@ class TestConnectionLoop:
                 ws_client, attribute="_connect_and_listen", new=AsyncMock()
             ) as connect_and_listen,
             patch(
-                "app.dirigera.websocket_client.retry_with_backoff",
+                "dirigera_bridge.dirigera.websocket_client.retry_with_backoff",
                 return_value=self._attempts(1),
             ),
         ):
@@ -507,7 +509,7 @@ class TestConnectionLoop:
         metrics: MetricsStore,
     ) -> None:
         """connect() schedules the loop and clears a previous stop signal."""
-        from app.dirigera.websocket_client import DirigeraWebSocketClient
+        from dirigera_bridge.dirigera.websocket_client import DirigeraWebSocketClient
 
         client = DirigeraWebSocketClient(settings, event_bus, lifecycle, metrics)
         client._stop_event.set()
@@ -521,7 +523,7 @@ class TestConnectionLoop:
             return task
 
         with patch(
-            "app.dirigera.websocket_client.asyncio.create_task", side_effect=create_task
+            "dirigera_bridge.dirigera.websocket_client.asyncio.create_task", side_effect=create_task
         ) as create_task_mock:
             await client.connect()
 
@@ -583,7 +585,7 @@ class TestConnectionLoop:
                 new=AsyncMock(side_effect=closes_unexpectedly),
             ),
             patch(
-                "app.dirigera.websocket_client.retry_with_backoff",
+                "dirigera_bridge.dirigera.websocket_client.retry_with_backoff",
                 return_value=self._attempts(1),
             ),
         ):
@@ -603,7 +605,7 @@ class TestConnectionLoop:
                 new=AsyncMock(side_effect=asyncio.CancelledError()),
             ),
             patch(
-                "app.dirigera.websocket_client.retry_with_backoff",
+                "dirigera_bridge.dirigera.websocket_client.retry_with_backoff",
                 return_value=self._attempts(1),
             ),
             pytest.raises(asyncio.CancelledError),
@@ -637,7 +639,7 @@ class TestConnectionLoop:
             patch.object(ws_client, attribute="_publish_connection_event", new=AsyncMock()),
             patch("websockets.connect", return_value=context),
             patch(
-                "app.dirigera.websocket_client.asyncio.create_task",
+                "dirigera_bridge.dirigera.websocket_client.asyncio.create_task",
                 side_effect=fake_create_task,
             ),
         ):
@@ -1020,7 +1022,7 @@ class TestBuildSslContext:
     def test_returns_ssl_context(self) -> None:
         """_build_ssl_context returns a ssl.SSLContext."""
         # noinspection protected-member
-        from app.dirigera.websocket_client import _build_ssl_context
+        from dirigera_bridge.dirigera.websocket_client import _build_ssl_context
 
         ctx = _build_ssl_context()
         assert isinstance(ctx, ssl.SSLContext)
@@ -1029,7 +1031,7 @@ class TestBuildSslContext:
     def test_check_hostname_disabled(self) -> None:
         """check_hostname is False (self-signed cert support)."""
         # noinspection protected-member
-        from app.dirigera.websocket_client import _build_ssl_context
+        from dirigera_bridge.dirigera.websocket_client import _build_ssl_context
 
         ctx = _build_ssl_context()
         assert ctx.check_hostname is False
@@ -1038,7 +1040,7 @@ class TestBuildSslContext:
     def test_cert_none(self) -> None:
         """verify_mode is CERT_NONE (self-signed cert support)."""
         # noinspection protected-member
-        from app.dirigera.websocket_client import _build_ssl_context
+        from dirigera_bridge.dirigera.websocket_client import _build_ssl_context
 
         ctx = _build_ssl_context()
         assert ctx.verify_mode == ssl.CERT_NONE
@@ -1076,7 +1078,7 @@ class TestPingLoopBranches:
             ws_client._stop_event.set()
 
         with patch(
-            "app.dirigera.websocket_client.asyncio.sleep",
+            "dirigera_bridge.dirigera.websocket_client.asyncio.sleep",
             side_effect=sleep_then_stop,
         ):
             await ws_client._ping_loop(socket)
@@ -1104,7 +1106,7 @@ class TestPingLoopBranches:
                 ws_client._stop_event.set()
 
         with patch(
-            "app.dirigera.websocket_client.asyncio.sleep",
+            "dirigera_bridge.dirigera.websocket_client.asyncio.sleep",
             side_effect=sleep_then_stop_on_second_call,
         ):
             await ws_client._ping_loop(socket)

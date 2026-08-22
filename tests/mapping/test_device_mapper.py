@@ -21,10 +21,10 @@ from unittest.mock import MagicMock, patch
 import pytest
 from ha_mqtt_sdk import DeviceInfo, Entity, HADomain
 
-from app.core.errors import DirigeraBridgeError, ErrorCode
-from app.core.metrics import MetricName, MetricsStore
-from app.mapping.device_mapper import DeviceMapper, build_device_info
-from app.mapping.device_registry import DeviceContext
+from dirigera_bridge.core.errors import DirigeraBridgeError, ErrorCode
+from dirigera_bridge.core.metrics import MetricName, MetricsStore
+from dirigera_bridge.mapping.device_mapper import DeviceMapper, build_device_info
+from dirigera_bridge.mapping.device_registry import DeviceContext
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -99,11 +99,13 @@ class TestMapDevice:
 
         with (
             patch.dict(
-                "app.mapping.domains.DEVICE_TYPE_REGISTRY",
+                "dirigera_bridge.mapping.domains.DEVICE_TYPE_REGISTRY",
                 {"light": lambda ctx, di: [fake_entity]},
                 clear=False,
             ),
-            patch("app.mapping.device_mapper.build_device_info", return_value=MagicMock()),
+            patch(
+                "dirigera_bridge.mapping.device_mapper.build_device_info", return_value=MagicMock()
+            ),
         ):
             ctx2 = make_context(device_type="light")
             result = mapper.map_device(ctx2)
@@ -117,7 +119,7 @@ class TestMapDevice:
         mapper = DeviceMapper(metrics=metrics)
 
         with patch.dict(
-            "app.mapping.domains.DEVICE_TYPE_REGISTRY",
+            "dirigera_bridge.mapping.domains.DEVICE_TYPE_REGISTRY",
             {},
             clear=True,
         ):
@@ -132,7 +134,7 @@ class TestMapDevice:
         mapper = DeviceMapper(metrics=metrics)
 
         with patch.dict(
-            "app.mapping.domains.DEVICE_TYPE_REGISTRY",
+            "dirigera_bridge.mapping.domains.DEVICE_TYPE_REGISTRY",
             {},
             clear=True,
         ):
@@ -152,11 +154,13 @@ class TestMapDevice:
 
         with (
             patch.dict(
-                "app.mapping.domains.DEVICE_TYPE_REGISTRY",
+                "dirigera_bridge.mapping.domains.DEVICE_TYPE_REGISTRY",
                 {"broken": broken_mapper},
                 clear=False,
             ),
-            patch("app.mapping.device_mapper.build_device_info", return_value=MagicMock()),
+            patch(
+                "dirigera_bridge.mapping.device_mapper.build_device_info", return_value=MagicMock()
+            ),
         ):
             ctx = make_context(device_type="broken")
             result = mapper.map_device(ctx)
@@ -182,11 +186,13 @@ class TestMapDevice:
 
         with (
             patch.dict(
-                "app.mapping.domains.DEVICE_TYPE_REGISTRY",
+                "dirigera_bridge.mapping.domains.DEVICE_TYPE_REGISTRY",
                 {"light": lambda ctx, di: [fake_entity]},
                 clear=False,
             ),
-            patch("app.mapping.device_mapper.build_device_info", return_value=MagicMock()),
+            patch(
+                "dirigera_bridge.mapping.device_mapper.build_device_info", return_value=MagicMock()
+            ),
         ):
             ctx2 = make_context(device_type="light")
             mapper.map_device(ctx2)
@@ -201,12 +207,12 @@ class TestMapDevice:
 
         with (
             patch.dict(
-                "app.mapping.domains.DEVICE_TYPE_REGISTRY",
+                "dirigera_bridge.mapping.domains.DEVICE_TYPE_REGISTRY",
                 {"light": lambda ctx, di: []},
                 clear=False,
             ),
             patch(
-                "app.mapping.device_mapper.build_device_info",
+                "dirigera_bridge.mapping.device_mapper.build_device_info",
                 side_effect=Exception("build failed"),
             ),
         ):
@@ -244,11 +250,13 @@ class TestMapDevices:
 
         with (
             patch.dict(
-                "app.mapping.domains.DEVICE_TYPE_REGISTRY",
+                "dirigera_bridge.mapping.domains.DEVICE_TYPE_REGISTRY",
                 {"light": rotating_mapper},
                 clear=False,
             ),
-            patch("app.mapping.device_mapper.build_device_info", return_value=MagicMock()),
+            patch(
+                "dirigera_bridge.mapping.device_mapper.build_device_info", return_value=MagicMock()
+            ),
         ):
             contexts = [
                 make_context("light_1", device_type="light"),
@@ -291,11 +299,13 @@ class TestMapDevices:
 
         with (
             patch.dict(
-                "app.mapping.domains.DEVICE_TYPE_REGISTRY",
+                "dirigera_bridge.mapping.domains.DEVICE_TYPE_REGISTRY",
                 {"light": sometimes_broken},
                 clear=False,
             ),
-            patch("app.mapping.device_mapper.build_device_info", return_value=MagicMock()),
+            patch(
+                "dirigera_bridge.mapping.device_mapper.build_device_info", return_value=MagicMock()
+            ),
         ):
             contexts = [
                 make_context("light_1", device_type="light"),
@@ -363,11 +373,11 @@ class TestMapDeviceInfoNone:
 
         with (
             patch.dict(
-                "app.mapping.domains.DEVICE_TYPE_REGISTRY",
+                "dirigera_bridge.mapping.domains.DEVICE_TYPE_REGISTRY",
                 {"light": lambda _ctx, _di: []},
                 clear=False,
             ),
-            patch("app.mapping.device_mapper.build_device_info", return_value=None),
+            patch("dirigera_bridge.mapping.device_mapper.build_device_info", return_value=None),
         ):
             ctx = make_context(device_type="light")
             result = mapper.map_device(ctx)
@@ -400,7 +410,7 @@ class TestBuildDeviceInfo:
         context = make_context()
 
         with patch(
-            "app.mapping.device_mapper.create_device_info",
+            "dirigera_bridge.mapping.device_mapper.create_device_info",
             side_effect=RuntimeError("sdk boom"),
         ):
             result = build_device_info(context)

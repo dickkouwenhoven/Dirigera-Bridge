@@ -52,13 +52,13 @@ from ha_mqtt_sdk import AsyncMQTTClient, DeviceInfo, Entity, HADomain, MQTTSetti
 from ha_mqtt_sdk.mqtt.base_async_mqtt_client import BaseAsyncMQTTClient
 from ha_mqtt_sdk.types import PublishPayload
 
-import app.ha.ha_client as ha_client_module
-from app.config import Settings
-from app.core import DiscoveryCache, MetricsStore, ServiceLifecycle
-from app.core.errors import DirigeraBridgeError, ErrorCode
-from app.core.lifecycle import LifecycleState
-from app.core.metrics import MetricName
-from app.ha.ha_client import HAClient
+import dirigera_bridge.ha.ha_client as ha_client_module
+from dirigera_bridge.config import Settings
+from dirigera_bridge.core import DiscoveryCache, MetricsStore, ServiceLifecycle
+from dirigera_bridge.core.errors import DirigeraBridgeError, ErrorCode
+from dirigera_bridge.core.lifecycle import LifecycleState
+from dirigera_bridge.core.metrics import MetricName
+from dirigera_bridge.ha.ha_client import HAClient
 
 invalid_state: Any = "not an entity"
 
@@ -126,7 +126,7 @@ def make_entity(
 @pytest.fixture
 def fake_mqtt_factory(monkeypatch: MonkeyPatch) -> list[Any]:
     """
-    Patch app.ha.ha_client.AsyncMQTTClient with FakeMQTTClient.
+    Patch dirigera_bridge.ha.ha_client.AsyncMQTTClient with FakeMQTTClient.
 
     Returns the list of instances created, so tests can reach into the
     one FakeMQTTClient a given HAClient actually built.
@@ -669,7 +669,7 @@ Targets the coverage gaps reported by `pytest --cov --cov-report=term-missing`:
              386-402, 535
 
 Needs one extra import at the top of the file:
-    from app.core.lifecycle import LifecycleState
+    from dirigera_bridge.core.lifecycle import LifecycleState
 """
 
 

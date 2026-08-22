@@ -37,22 +37,21 @@ import logging
 import signal
 import sys
 
-from app.config import Settings, load_settings
-from app.core.discovery_cache import DiscoveryCache
-from app.core.errors import DirigeraBridgeError
-from app.core.event_bus import AsyncEventBus
-from app.core.lifecycle import ServiceLifecycle
-from app.core.metrics import MetricsStore
-from app.core.state_cache import StateCache
-from app.dirigera.rest_client import DirigeraRestClient
-from app.dirigera.websocket_client import DirigeraWebSocketClient
-from app.ha.ha_client import HAClient
-from app.mapping.command_mapper import CommandMapper
-from app.mapping.device_mapper import DeviceMapper
-from app.mapping.state_mapper import StateMapper
-from app.orchestrator import Orchestrator
+from .config import Settings, load_settings
+from .core.discovery_cache import DiscoveryCache
+from .core.errors import DirigeraBridgeError
+from .core.event_bus import AsyncEventBus
+from .core.lifecycle import ServiceLifecycle
+from .core.metrics import MetricsStore
+from .core.state_cache import StateCache
+from .dirigera.rest_client import DirigeraRestClient
+from .dirigera.websocket_client import DirigeraWebSocketClient
+from .ha.ha_client import HAClient
+from .mapping.command_mapper import CommandMapper
+from .mapping.device_mapper import DeviceMapper
+from .mapping.state_mapper import StateMapper
+from .orchestrator import Orchestrator
 
-# ── Service version ───────────────────────────────────────────────────────────
 # Hardcoded here — not an env variable — so it cannot be accidentally overridden.
 SERVICE_VERSION = "1.0.0"
 SERVICE_NAME = "dirigera-mqtt-bridge"
@@ -271,4 +270,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    main()  # pragma: no cover

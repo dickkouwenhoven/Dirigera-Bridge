@@ -32,10 +32,10 @@ from typing import Any
 import pytest
 from ha_mqtt_sdk import DeviceInfo
 
-from app.mapping import DeviceContext
+from dirigera_bridge.mapping import DeviceContext
 
 # noinspection protected-member,protected-member
-from app.mapping.domains.light import (
+from dirigera_bridge.mapping.domains.light import (
     DEVICE_TYPES,
     _build_light_extra,
     _kelvin_to_mireds,
@@ -430,8 +430,8 @@ class TestMapLightWithRealFixture:
     @pytest.mark.unit
     def test_tradfri_cws_full_colour(self, light_raw: dict[str, Any]) -> None:
         """Real TRADFRI CWS light maps to full color entity."""
-        from app.dirigera.models import DirigeraDevice
-        from app.mapping.device_registry import build_device_contexts
+        from dirigera_bridge.dirigera.models import DirigeraDevice
+        from dirigera_bridge.mapping.device_registry import build_device_contexts
 
         device = DirigeraDevice.model_validate(light_raw)
         regular, _ = build_device_contexts([device])

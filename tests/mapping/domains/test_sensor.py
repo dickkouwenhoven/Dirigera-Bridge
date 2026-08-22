@@ -19,8 +19,8 @@ from typing import Any
 import pytest
 from ha_mqtt_sdk import DeviceInfo
 
-from app.mapping import DeviceContext
-from app.mapping.domains.sensor import DEVICE_TYPES, map_light_sensor
+from dirigera_bridge.mapping import DeviceContext
+from dirigera_bridge.mapping.domains.sensor import DEVICE_TYPES, map_light_sensor
 
 
 class MockDeviceInfo(DeviceInfo):
@@ -132,8 +132,8 @@ class TestMapLightSensor:
         vallhorn_light_raw: dict[str, Any],
     ) -> None:
         """Real VALLHORN lightSensor maps with inherited device name."""
-        from app.dirigera.models import DirigeraDevice
-        from app.mapping.device_registry import build_device_contexts
+        from dirigera_bridge.dirigera.models import DirigeraDevice
+        from dirigera_bridge.mapping.device_registry import build_device_contexts
 
         devices = [
             DirigeraDevice.model_validate(vallhorn_motion_raw),

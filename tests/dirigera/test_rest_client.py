@@ -24,17 +24,17 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from app.config import Settings
-from app.core.errors import DirigeraBridgeError, ErrorCode
-from app.core.metrics import MetricName, MetricsStore
-from app.dirigera import DirigeraRestClient
+from dirigera_bridge.config import Settings
+from dirigera_bridge.core.errors import DirigeraBridgeError, ErrorCode
+from dirigera_bridge.core.metrics import MetricName, MetricsStore
+from dirigera_bridge.dirigera import DirigeraRestClient
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 
 def make_client(settings: Settings, metrics: Any = None) -> DirigeraRestClient:
     """Build a DirigeraRestClient with injected settings."""
-    from app.dirigera.rest_client import DirigeraRestClient
+    from dirigera_bridge.dirigera.rest_client import DirigeraRestClient
 
     return DirigeraRestClient(
         settings=settings,
@@ -65,7 +65,7 @@ class TestDirigeraRestClientConstruction:
     @pytest.mark.unit
     def test_invalid_settings_raises(self) -> None:
         """Non-Settings raises INTERNAL_INVALID_ARGUMENT."""
-        from app.dirigera.rest_client import DirigeraRestClient
+        from dirigera_bridge.dirigera.rest_client import DirigeraRestClient
 
         with pytest.raises(DirigeraBridgeError) as exc_info:
             DirigeraRestClient(settings="not_settings", metrics=MetricsStore())  # type: ignore[arg-type]
@@ -74,7 +74,7 @@ class TestDirigeraRestClientConstruction:
     @pytest.mark.unit
     def test_invalid_metrics_raises(self, settings: Settings) -> None:
         """Non-MetricsStore raises INTERNAL_INVALID_ARGUMENT."""
-        from app.dirigera.rest_client import DirigeraRestClient
+        from dirigera_bridge.dirigera.rest_client import DirigeraRestClient
 
         with pytest.raises(DirigeraBridgeError) as exc_info:
             DirigeraRestClient(settings=settings, metrics="not_metrics")  # type: ignore[arg-type]
@@ -110,7 +110,7 @@ class TestTimeout:
         """_timeout is a staticmethod."""
         import inspect
 
-        from app.dirigera.rest_client import DirigeraRestClient
+        from dirigera_bridge.dirigera.rest_client import DirigeraRestClient
 
         assert isinstance(
             inspect.getattr_static(DirigeraRestClient, "_timeout"),
@@ -451,8 +451,8 @@ class TestRestClientInternals:
     def test_get_session_creates_session_with_auth_headers(self, settings: Settings) -> None:
         client = make_client(settings)
         with (
-            patch("app.dirigera.rest_client.aiohttp.TCPConnector") as connector,
-            patch("app.dirigera.rest_client.aiohttp.ClientSession") as session_type,
+            patch("dirigera_bridge.dirigera.rest_client.aiohttp.TCPConnector") as connector,
+            patch("dirigera_bridge.dirigera.rest_client.aiohttp.ClientSession") as session_type,
         ):
             session_type.return_value.closed = False
             assert client._get_session() is session_type.return_value

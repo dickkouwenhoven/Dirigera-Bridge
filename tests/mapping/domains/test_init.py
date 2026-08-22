@@ -8,7 +8,7 @@ Covers app/mapping/domains/__init__.py:
       generic-Exception / duplicate-registration branches
 
 _register_mappers() only runs once, automatically, at first import of
-app.mapping.domains -- which happens before pytest-cov starts tracking.
+dirigera_bridge.mapping.domains -- which happens before pytest-cov starts tracking.
 So instead of relying on that side effect, we call it directly here
 with importlib.import_module monkeypatched, to exercise every branch
 under coverage.
@@ -23,10 +23,10 @@ from unittest.mock import MagicMock, patch
 import pytest
 from ha_mqtt_sdk import DeviceInfo, Entity
 
-import app.mapping.domains as domains_pkg
-from app.core.errors import DirigeraBridgeError, ErrorCode
-from app.mapping.device_registry import DeviceContext
-from app.mapping.domains import make_battery_entity, make_unique_id
+import dirigera_bridge.mapping.domains as domains_pkg
+from dirigera_bridge.core.errors import DirigeraBridgeError, ErrorCode
+from dirigera_bridge.mapping.device_registry import DeviceContext
+from dirigera_bridge.mapping.domains import make_battery_entity, make_unique_id
 
 # ── make_unique_id ──────────────────────────────────────────────────────────
 

@@ -18,8 +18,8 @@ from typing import Any
 import pytest
 from ha_mqtt_sdk import DeviceInfo
 
-from app.mapping import DeviceContext
-from app.mapping.domains.button import DEVICE_TYPES, map_button
+from dirigera_bridge.mapping import DeviceContext
+from dirigera_bridge.mapping.domains.button import DEVICE_TYPES, map_button
 
 
 class MockDeviceInfo(DeviceInfo):
@@ -140,7 +140,7 @@ class TestMapButton:
     @pytest.mark.unit
     def test_fewer_event_types_than_remote(self) -> None:
         """Button has fewer event types than lightController (no _off variants)."""
-        from app.mapping.domains.remote import map_light_controller
+        from dirigera_bridge.mapping.domains.remote import map_light_controller
 
         btn_ctx = MockContext()
         remote_ctx = MockContext()

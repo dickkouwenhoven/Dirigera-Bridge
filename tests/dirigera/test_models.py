@@ -29,7 +29,11 @@ from typing import Any
 
 import pytest
 
-from app.dirigera.models import DirigeraAttributes, DirigeraDevice, DirigeraWebSocketEvent
+from dirigera_bridge.dirigera.models import (
+    DirigeraAttributes,
+    DirigeraDevice,
+    DirigeraWebSocketEvent,
+)
 
 # ── DirigeraDevice — light ────────────────────────────────────────────────────
 

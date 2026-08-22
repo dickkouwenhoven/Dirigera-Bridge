@@ -19,8 +19,8 @@ from typing import Any
 import pytest
 from ha_mqtt_sdk import DeviceInfo
 
-from app.mapping import DeviceContext
-from app.mapping.domains.switch import DEVICE_TYPES, map_switch
+from dirigera_bridge.mapping import DeviceContext
+from dirigera_bridge.mapping.domains.switch import DEVICE_TYPES, map_switch
 
 
 class MockDeviceInfo(DeviceInfo):
@@ -122,7 +122,7 @@ class TestMapSwitch:
     @pytest.mark.unit
     def test_switch_distinct_from_outlet(self) -> None:
         """Switch produces 1 entity; outlet produces 5."""
-        from app.mapping.domains.outlet import map_outlet
+        from dirigera_bridge.mapping.domains.outlet import map_outlet
 
         full_outlet_attrs = {
             "isOn": True,

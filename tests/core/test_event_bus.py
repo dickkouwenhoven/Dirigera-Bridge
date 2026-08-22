@@ -19,8 +19,8 @@ from typing import Any
 
 import pytest
 
-from app.core.errors import DirigeraBridgeError, ErrorCode
-from app.core.event_bus import AsyncEventBus, DirigeraEvent, EventType
+from dirigera_bridge.core.errors import DirigeraBridgeError, ErrorCode
+from dirigera_bridge.core.event_bus import AsyncEventBus, DirigeraEvent, EventType
 
 
 class TestEventType:

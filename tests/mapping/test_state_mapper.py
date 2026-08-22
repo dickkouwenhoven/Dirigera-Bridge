@@ -31,8 +31,8 @@ from typing import Any
 import pytest
 from _pytest.monkeypatch import MonkeyPatch
 
-from app.core.errors import DirigeraBridgeError, ErrorCode
-from app.mapping.state_mapper import StateMapper, StatePayload
+from dirigera_bridge.core.errors import DirigeraBridgeError, ErrorCode
+from dirigera_bridge.mapping.state_mapper import StateMapper, StatePayload
 
 
 @pytest.fixture
@@ -990,6 +990,6 @@ class TestStateMapperRemainingBranches:
     )
     def test_format_float_numeric_and_invalid_values(self, value: str, expected: str) -> None:
         # noinspection protected-member
-        from app.mapping.state_mapper import _format_float
+        from dirigera_bridge.mapping.state_mapper import _format_float
 
         assert _format_float(value) == expected

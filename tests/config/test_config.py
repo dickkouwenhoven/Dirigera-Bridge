@@ -21,15 +21,15 @@ Covers:
 import pytest
 from _pytest.monkeypatch import MonkeyPatch
 
-from app.config import Settings, get_settings, load_settings
-from app.core.errors import DirigeraBridgeError, ErrorCode
+from dirigera_bridge.config import Settings, get_settings, load_settings
+from dirigera_bridge.core.errors import DirigeraBridgeError, ErrorCode
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 
 def reset_singleton() -> None:
     """Reset the config singleton between tests."""
-    import app.config as cfg
+    import dirigera_bridge.config as cfg
 
     cfg._settings = None
 
@@ -420,7 +420,7 @@ class TestOptionalValueHelpers:
         monkeypatch: MonkeyPatch,
     ) -> None:
         # noinspection protected-member
-        from app.config import _optional_int
+        from dirigera_bridge.config import _optional_int
 
         monkeypatch.delenv("TEST_OPTIONAL_INT", raising=False)
         assert _optional_int("TEST_OPTIONAL_INT", 42, 1) == 42
@@ -433,7 +433,7 @@ class TestOptionalValueHelpers:
         monkeypatch: MonkeyPatch,
     ) -> None:
         # noinspection protected-member
-        from app.config import _optional_float
+        from dirigera_bridge.config import _optional_float
 
         monkeypatch.delenv("TEST_OPTIONAL_FLOAT", raising=False)
         assert _optional_float("TEST_OPTIONAL_FLOAT", 1.5, 0.0) == 1.5
@@ -448,7 +448,7 @@ class TestOptionalValueHelpers:
         value: str,
     ) -> None:
         # noinspection protected-member
-        from app.config import _optional_float
+        from dirigera_bridge.config import _optional_float
 
         monkeypatch.setenv("TEST_OPTIONAL_FLOAT", value)
         with pytest.raises(DirigeraBridgeError) as exc_info:
@@ -459,7 +459,7 @@ class TestOptionalValueHelpers:
     @pytest.mark.unit
     def test_optional_float_rejects_value_below_minimum(self, monkeypatch: MonkeyPatch) -> None:
         # noinspection protected-member
-        from app.config import _optional_float
+        from dirigera_bridge.config import _optional_float
 
         monkeypatch.setenv("TEST_OPTIONAL_FLOAT", "0.09")
         with pytest.raises(DirigeraBridgeError) as exc_info:
@@ -473,7 +473,7 @@ class TestOptionalValueHelpers:
         monkeypatch: MonkeyPatch,
     ) -> None:
         # noinspection protected-member
-        from app.config import _optional_log_level
+        from dirigera_bridge.config import _optional_log_level
 
         monkeypatch.delenv("TEST_LOG_LEVEL", raising=False)
         assert _optional_log_level("TEST_LOG_LEVEL", "INFO") == "INFO"

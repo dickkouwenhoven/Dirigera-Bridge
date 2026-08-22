@@ -19,8 +19,8 @@ from typing import Any
 import pytest
 from ha_mqtt_sdk import DeviceInfo
 
-from app.mapping import DeviceContext
-from app.mapping.domains.air_purifier import DEVICE_TYPES, map_air_purifier
+from dirigera_bridge.mapping import DeviceContext
+from dirigera_bridge.mapping.domains.air_purifier import DEVICE_TYPES, map_air_purifier
 
 
 class MockDeviceInfo(DeviceInfo):

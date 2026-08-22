@@ -19,8 +19,8 @@ import random
 
 import pytest
 
-from app.core.errors import DirigeraBridgeError, ErrorCode
-from app.core.retry import (
+from dirigera_bridge.core.errors import DirigeraBridgeError, ErrorCode
+from dirigera_bridge.core.retry import (
     RetryConfig,
     RetryExhaustedError,
     calculate_delay,

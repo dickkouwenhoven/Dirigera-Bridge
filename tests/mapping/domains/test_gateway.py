@@ -24,8 +24,8 @@ from typing import Any
 import pytest
 from ha_mqtt_sdk import DeviceInfo
 
-from app.mapping import DeviceContext
-from app.mapping.domains.gateway import DEVICE_TYPES, map_gateway
+from dirigera_bridge.mapping import DeviceContext
+from dirigera_bridge.mapping.domains.gateway import DEVICE_TYPES, map_gateway
 
 # ── Shared mock objects ───────────────────────────────────────────────────────
 

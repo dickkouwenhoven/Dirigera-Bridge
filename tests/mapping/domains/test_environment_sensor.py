@@ -20,8 +20,8 @@ from typing import Any
 import pytest
 from ha_mqtt_sdk import DeviceInfo
 
-from app.mapping import DeviceContext
-from app.mapping.domains.environment_sensor import (
+from dirigera_bridge.mapping import DeviceContext
+from dirigera_bridge.mapping.domains.environment_sensor import (
     DEVICE_TYPES,
     map_environment_sensor,
 )
@@ -174,8 +174,8 @@ class TestMapEnvironmentSensorUniqueIds:
     @pytest.mark.unit
     def test_real_vindstyrka_fixture(self, vindstyrka_raw: dict[str, Any]) -> None:
         """Real VINDSTYRKA fixture maps to 4 entities."""
-        from app.dirigera.models import DirigeraDevice
-        from app.mapping.device_registry import build_device_contexts
+        from dirigera_bridge.dirigera.models import DirigeraDevice
+        from dirigera_bridge.mapping.device_registry import build_device_contexts
 
         device = DirigeraDevice.model_validate(vindstyrka_raw)
         regular, _ = build_device_contexts([device])

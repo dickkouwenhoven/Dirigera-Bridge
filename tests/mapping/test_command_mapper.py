@@ -22,8 +22,8 @@ from typing import Any, cast
 
 import pytest
 
-from app.core.errors import DirigeraBridgeError, ErrorCode
-from app.mapping.command_mapper import CommandMapper, CommandPayload
+from dirigera_bridge.core.errors import DirigeraBridgeError, ErrorCode
+from dirigera_bridge.mapping.command_mapper import CommandMapper, CommandPayload
 
 invalid_attribute: Any = None
 

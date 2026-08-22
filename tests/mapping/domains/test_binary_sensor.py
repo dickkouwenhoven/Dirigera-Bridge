@@ -19,8 +19,8 @@ from typing import Any
 import pytest
 from ha_mqtt_sdk import DeviceInfo
 
-from app.mapping import DeviceContext
-from app.mapping.domains.binary_sensor import (
+from dirigera_bridge.mapping import DeviceContext
+from dirigera_bridge.mapping.domains.binary_sensor import (
     DEVICE_TYPES,
     map_motion_sensor,
     map_water_sensor,
@@ -125,8 +125,8 @@ class TestMapMotionSensor:
     @pytest.mark.unit
     def test_real_vallhorn_fixture(self, vallhorn_motion_raw: dict[str, Any]) -> None:
         """Real VALLHORN motionSensor fixture maps correctly."""
-        from app.dirigera.models import DirigeraDevice
-        from app.mapping.device_registry import build_device_contexts
+        from dirigera_bridge.dirigera.models import DirigeraDevice
+        from dirigera_bridge.mapping.device_registry import build_device_contexts
 
         device = DirigeraDevice.model_validate(vallhorn_motion_raw)
         regular, _ = build_device_contexts([device])
@@ -179,8 +179,8 @@ class TestMapWaterSensor:
     @pytest.mark.unit
     def test_real_badring_fixture(self, water_sensor_raw: dict[str, Any]) -> None:
         """Real BADRING waterSensor fixture maps correctly."""
-        from app.dirigera.models import DirigeraDevice
-        from app.mapping.device_registry import build_device_contexts
+        from dirigera_bridge.dirigera.models import DirigeraDevice
+        from dirigera_bridge.mapping.device_registry import build_device_contexts
 
         device = DirigeraDevice.model_validate(water_sensor_raw)
         regular, _ = build_device_contexts([device])

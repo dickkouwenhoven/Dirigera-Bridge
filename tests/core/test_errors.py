@@ -13,7 +13,7 @@ Covers:
 
 import pytest
 
-from app.core.errors import (
+from dirigera_bridge.core.errors import (
     DirigeraBridgeError,
     ErrorCode,
     format_error,
