@@ -1,27 +1,3 @@
-# ─────────────────────────────────────────────────────────────────────────────
-# docker-compose.yml — Dirigera MQTT Bridge
-#
-# Assumptions:
-#   - The iot_network Docker bridge network already exists and is shared
-#     with the mosquitto and homeassistant containers.
-#   - The HASDK source lives at the path defined by SDK_SRC_PATH (see
-#     the .env file or the default below). It is copied into the build
-#     context as sdk_src/ during the build stage.
-#   - The .env file lives in the same directory as this file.
-#
-# Create the shared network (once, if not already created):
-#   docker network create iot_network
-#
-# Build and start:
-#   docker compose up -d --build
-#
-# View logs:
-#   docker compose logs -f dirigera-bridge
-#
-# Stop:
-#   docker compose down
-# ─────────────────────────────────────────────────────────────────────────────
-
 services:
 
   dirigera-bridge:
