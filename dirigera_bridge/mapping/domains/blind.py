@@ -137,7 +137,7 @@ def map_blind(
             )
         )
 
-    logger.info(
+    logger.debug(
         "map_blind: mapped '%s' to %d HA entity(ies)",
         name,
         len(entities),
