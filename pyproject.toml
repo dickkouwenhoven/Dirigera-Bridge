@@ -107,6 +107,12 @@ ignore = []
 asyncio_mode = "auto"
 testpaths = ["tests"]
 python_files = ["test_*.py"]
+addopts = "-V"
+markers = [
+    "unit: pure unit tests with no external dependencies",
+    "integration: tests that mock multiple layers together",
+    "slow: tests that take more than 1 second",    
+]
 
 [tool.coverage.run]
 source = ["dirigera_bridge"]
