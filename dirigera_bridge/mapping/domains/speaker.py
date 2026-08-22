@@ -164,7 +164,7 @@ def map_speaker(
         _make_power_switch(lid, name, device_info),
     ]
 
-    logger.info(
+    logger.debug(
         "map_speaker: mapped speaker '%s' to %d HA entity(ies)",
         name,
         len(entities),
