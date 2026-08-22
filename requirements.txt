@@ -28,13 +28,13 @@ aiohttp>=3.9,<4.0
 
 # Async MQTT client (used by HASDK internally)
 # Listed here to pin the version used by the HASDK transport layer
-aiomqtt>=2.0,<3.0
+aiomqtt>=2.5.1,<3.0
 
 # ── Data validation ───────────────────────────────────────────────────────────
 
 # Data validation and parsing for Dirigera device/event payloads
 # Used by: app/dirigera/models.py
-pydantic>=2.0,<3.0
+pydantic>=2.13.4,<3.0
 
 # ── Configuration ─────────────────────────────────────────────────────────────
 
