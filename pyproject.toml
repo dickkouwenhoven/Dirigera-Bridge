@@ -67,10 +67,10 @@ Changelog = "https://github.com/dickkouwenhoven/Dirigera-Bridge/releases"
 ha_mqtt_sdk = ["py.typed"]
 
 [tool.setuptools.packages.find]
-where = ["dirigera_bridge"]
+where = ["."]
+include = ["dirigera_bridge*"]
 
 [tool.setuptools]
-package-dir = {"" = "dirigera_bridge"}
 
 # -------------------------
 # Optional dev tools
