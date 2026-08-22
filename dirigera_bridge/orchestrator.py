@@ -671,8 +671,8 @@ class Orchestrator:
                 return
 
             logger.debug(
-                "Orchestrator: sending command for %s: %s", 
-                logical_id, 
+                "Orchestrator: sending command for %s: %s",
+                logical_id,
                 cmd.attributes,
             )
             # ── Send to Dirigera REST API ─────────────────────────────────
