@@ -21,7 +21,7 @@ What it does:
        for clean shutdown
 
 Arguments / Configuration:
-    All configuration is read from .env via app.config.load_settings().
+    All configuration is read from .env via dirigera_bridge.config.load_settings().
     No command-line arguments are required.
 
 Not responsible for:
