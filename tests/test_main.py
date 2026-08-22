@@ -495,3 +495,20 @@ async def test_async_main_signal_handler_requests_shutdown() -> None:
     await asyncio.sleep(0)
 
     orchestrator.stop.assert_awaited_once()
+
+
+def test_main_module_entrypoint(monkeypatch):
+    """__main__ calls main() when executed as a module."""
+    called = False
+
+    def fake_main():
+        nonlocal called
+        called = True
+
+    monkeypatch.setattr("dirigera_bridge.main.main", fake_main)
+
+    import runpy
+
+    runpy.run_module("dirigera_bridge.__main__", run_name="__main__")
+
+    assert called
