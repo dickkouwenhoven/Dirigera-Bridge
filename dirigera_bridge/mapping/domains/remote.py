@@ -154,7 +154,7 @@ def map_light_controller(
             )
         )
 
-    logger.info(
+    logger.debug(
         "map_light_controller: mapped '%s' to %d HA entity(ies)",
         name,
         len(entities),
