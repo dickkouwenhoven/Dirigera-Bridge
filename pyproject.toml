@@ -42,6 +42,9 @@ dependencies = [
 	"websockets>=16.0,<17.0",
 ]
 
+[project.scripts]
+dirigera_bridge = "dirigera_bridge.main:main"
+
 [project.optional-dependencies]
 dev = [
 	"pytest>=9.0.0",
