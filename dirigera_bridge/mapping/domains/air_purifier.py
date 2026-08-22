@@ -145,7 +145,7 @@ def map_air_purifier(
             )
         )
 
-    logger.info(
+    logger.debug(
         "map_air_purifier: mapped '%s' to %d HA entity(ies)",
         name,
         len(entities),
