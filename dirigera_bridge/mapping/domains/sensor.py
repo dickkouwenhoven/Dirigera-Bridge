@@ -130,7 +130,7 @@ def map_light_sensor(
             )
         )
 
-    logger.info(
+    logger.debug(
         "map_light_sensor: mapped '%s' to %d HA entity(ies)",
         name,
         len(entities),
