@@ -104,7 +104,7 @@ def map_switch(
         device_info=device_info,
     )
 
-    logger.info(
+    logger.debug(
         "map_switch: mapped switch '%s' to 1 HA entity",
         name,
     )
