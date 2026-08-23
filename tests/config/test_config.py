@@ -60,6 +60,10 @@ class TestLoadSettingsHappyPath:
         assert settings.mqtt_keepalive == 60
         assert settings.mqtt_base_topic == "dirigera"
         assert settings.mqtt_qos == 1
+        assert settings.mqtt_tls is False
+        assert settings.mqtt_reconnect is True
+        assert settings.mqtt_reconnect_delay_min == 1.0
+        assert settings.mqtt_reconnect_delay_max == 60.0
         assert settings.discovery_prefix == "homeassistant"
         assert settings.log_level == "DEBUG"
         assert settings.metrics_interval == 60
@@ -215,7 +219,39 @@ class TestLoadSettingsInvalidValues:
 
         assert exc_info.value.code == ErrorCode.CONFIG_INVALID_VALUE
 
+    @pytest.mark.unit
+    def test_invalid_mqtt_tls_raises(self, valid_env: None, monkeypatch: MonkeyPatch) -> None:
+        """Unrecognised MQTT_TLS value raises CONFIG_INVALID_VALUE."""
+        monkeypatch.setenv("MQTT_TLS", "maybe")
 
+        with pytest.raises(DirigeraBridgeError) as exc_info:
+            load_settings()
+
+        assert exc_info.value.code == ErrorCode.CONFIG_INVALID_VALUE
+
+    @pytest.mark.unit
+    def test_invalid_mqtt_reconnect_raises(self, valid_env: None, monkeypatch: MonkeyPatch) -> None:
+        """Unrecognised MQTT_RECONNECT value raises CONFIG_INVALID_VALUE."""
+        monkeypatch.setenv("MQTT_RECONNECT", "maybe")
+
+        with pytest.raises(DirigeraBridgeError) as exc_info:
+            load_settings()
+
+        assert exc_info.value.code == ErrorCode.CONFIG_INVALID_VALUE
+
+    @pytest.mark.unit
+    def test_mqtt_reconnect_delay_min_below_minimum_raises(
+        self, valid_env: None, monkeypatch: MonkeyPatch
+    ) -> None:
+        """MQTT_RECONNECT_DELAY_MIN below 0.1 raises CONFIG_INVALID_VALUE."""
+        monkeypatch.setenv("MQTT_RECONNECT_DELAY_MIN", "0.01")
+
+        with pytest.raises(DirigeraBridgeError) as exc_info:
+            load_settings()
+
+        assert exc_info.value.code == ErrorCode.CONFIG_INVALID_VALUE
+
+ 
 # ── load_settings() — cross-field validation ──────────────────────────────────
 
 
@@ -281,6 +317,40 @@ class TestLoadSettingsCrossFieldValidation:
 
         assert exc_info.value.code == ErrorCode.CONFIG_INVALID_VALUE
 
+    @pytest.mark.unit
+    def test_mqtt_reconnect_delay_max_less_than_min_raises(
+        self,
+        valid_env: None,
+        monkeypatch: MonkeyPatch,
+    ) -> None:
+        """MQTT_RECONNECT_DELAY_MAX < MQTT_RECONNECT_DELAY_MIN raises."""
+        monkeypatch.setenv("MQTT_RECONNECT_DELAY_MIN", "30.0")
+        monkeypatch.setenv("MQTT_RECONNECT_DELAY_MAX", "5.0")
+
+        with pytest.raises(DirigeraBridgeError) as exc_info:
+            load_settings()
+
+        assert exc_info.value.code == ErrorCode.CONFIG_INVALID_VALUE
+
+    @pytest.mark.unit
+    def test_mqtt_reconnect_delay_independent_of_websocket_reconnect_delay(
+        self,
+        valid_env: None,
+        monkeypatch: MonkeyPatch,
+    ) -> None:
+        """MQTT_RECONNECT_DELAY_MAX and RECONNECT_DELAY_MAX are independent
+        fields — setting one does not affect the other, and each is
+        validated only against its own paired minimum."""
+        monkeypatch.setenv("RECONNECT_DELAY_INITIAL", "1.0")
+        monkeypatch.setenv("RECONNECT_DELAY_MAX", "120.0")
+        monkeypatch.setenv("MQTT_RECONNECT_DELAY_MIN", "1.0")
+        monkeypatch.setenv("MQTT_RECONNECT_DELAY_MAX", "5.0")
+
+        s = load_settings()
+
+        assert s.reconnect_delay_max == 120.0
+        assert s.mqtt_reconnect_delay_max == 5.0
+
 
 # ── load_settings() — optional field custom values ────────────────────────────
 
@@ -322,6 +392,43 @@ class TestLoadSettingsOptionalCustomValues:
         s = load_settings()
         assert s.mqtt_qos == 2
 
+    @pytest.mark.unit
+    def test_mqtt_tls_true_is_valid(
+        self,
+        valid_env: None,
+        monkeypatch: MonkeyPatch,
+    ) -> None:
+        """MQTT_TLS=true is valid."""
+        monkeypatch.setenv("MQTT_TLS", "true")
+        s = load_settings()
+        assert s.mqtt_tls is True
+
+    @pytest.mark.unit
+    @pytest.mark.parametrize("value", ["1", "true", "yes", "on", "TRUE", "Yes", "ON"])
+    def test_mqtt_reconnect_true_variants_are_valid(
+        self,
+        valid_env: None,
+        monkeypatch: MonkeyPatch,
+        value: str,
+    ) -> None:
+        """MQTT_RECONNECT accepts several truthy spellings, case-insensitively."""
+        monkeypatch.setenv("MQTT_RECONNECT", value)
+        s = load_settings()
+        assert s.mqtt_reconnect is True
+
+    @pytest.mark.unit
+    @pytest.mark.parametrize("value", ["0", "false", "no", "off", "FALSE", "No", "OFF"])
+    def test_mqtt_reconnect_false_variants_are_valid(
+        self,
+        valid_env: None,
+        monkeypatch: MonkeyPatch,
+        value: str,
+    ) -> None:
+        """MQTT_RECONNECT accepts several falsy spellings, case-insensitively."""
+        monkeypatch.setenv("MQTT_RECONNECT", value)
+        s = load_settings()
+        assert s.mqtt_reconnect is False
+    
     @pytest.mark.unit
     @pytest.mark.parametrize("level", ["debug", "DEBUG", "Info", "WARNING", "error", "CRITICAL"])
     def test_log_level_case_insensitive(
@@ -427,6 +534,34 @@ class TestOptionalValueHelpers:
         monkeypatch.setenv("TEST_OPTIONAL_INT", "   ")
         assert _optional_int("TEST_OPTIONAL_INT", 42, 1) == 42
 
+    @pytest.mark.unit
+    def test_optional_bool_uses_default_for_missing_or_blank_value(
+        self,
+        monkeypatch: MonkeyPatch,
+    ) -> None:
+        # noinspection protected-member
+        from dirigera_bridge.config import _optional_bool
+
+        monkeypatch.delenv("TEST_OPTIONAL_BOOL", raising=False)
+        assert _optional_bool("TEST_OPTIONAL_BOOL", True) is True
+        monkeypatch.setenv("TEST_OPTIONAL_BOOL", "   ")
+        assert _optional_bool("TEST_OPTIONAL_BOOL", False) is False
+
+    @pytest.mark.unit
+    def test_optional_bool_rejects_unrecognised_value(
+        self,
+        monkeypatch: MonkeyPatch,
+    ) -> None:
+        # noinspection protected-member
+        from dirigera_bridge.config import _optional_bool
+
+        monkeypatch.setenv("TEST_OPTIONAL_BOOL", "sort-of")
+
+        with pytest.raises(DirigeraBridgeError) as exc_info:
+            _optional_bool("TEST_OPTIONAL_BOOL", True)
+
+        assert exc_info.value.code == ErrorCode.CONFIG_INVALID_VALUE
+    
     @pytest.mark.unit
     def test_optional_float_uses_default_for_missing_or_blank_value(
         self,
