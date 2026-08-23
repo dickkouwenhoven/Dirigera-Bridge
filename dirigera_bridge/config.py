@@ -65,7 +65,7 @@ Not responsible for:
     - Establishing any connections (that is the client modules' job)
     - Watching for config changes at runtime (static at startup)
     - Secrets management beyond reading from environment variables
-    - SERVICE_VERSION — that is a hardcoded constant in main.py, not
+    - SERVICE_VERSION — that is a hardcoded constant in factory.py, not
     an environment variable, so it cannot be accidentally overridden
 """
 
