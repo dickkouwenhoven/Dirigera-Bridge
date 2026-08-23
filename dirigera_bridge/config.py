@@ -29,27 +29,30 @@ What it does:
 Arguments / Configuration:
     All configuration comes from environment variables. Required:
 
-    DIRIGERA_IP        IP address of the Dirigera hub
-    DIRIGERA_TOKEN        Access token for the Dirigera WebSocket/REST API
-    MQTT_HOST        Hostname of the MQTT broker (e.g. 'mosquitto')
-    MQTT_USER        MQTT username
-    MQTT_PASSWORD        MQTT password
+    DIRIGERA_IP               IP address of the Dirigera hub
+    DIRIGERA_TOKEN            Access token for the Dirigera WebSocket/REST API
+    MQTT_HOST                 Hostname of the MQTT broker (e.g. 'mosquitto')
+    MQTT_USER                 MQTT username
+    MQTT_PASSWORD             MQTT password
 
     Optional (with defaults):
 
-    MQTT_PORT        MQTT broker port (default: 1883)
-    MQTT_CLIENT_ID        MQTT client identifier (default: 'dirigera-bridge')
-    MQTT_KEEPALIVE        MQTT keepalive interval in seconds (default: 60)
-    MQTT_BASE_TOPIC        Base topic prefix for state/command topics
-                (default: 'dirigera')
-    MQTT_QOS        MQTT QoS level 0, 1, or 2 (default: 1)
-    DISCOVERY_PREFIX    HA MQTT discovery prefix (default: 'homeassistant')
-    LOG_LEVEL        Logging level string (default: 'INFO')
-    METRICS_INTERVAL    Seconds between metrics log snapshots (default: 300)
-    WS_PING_INTERVAL    Seconds between WebSocket keepalive pings (default: 30)
-    WS_PING_TIMEOUT        Seconds to wait for a pong reply (default: 10)
-    RECONNECT_DELAY_INITIAL    First reconnect delay in seconds (default: 1.0)
-    RECONNECT_DELAY_MAX    Maximum reconnect delay in seconds (default: 60.0)
+    MQTT_PORT                 MQTT broker port (default: 1883)
+    MQTT_CLIENT_ID            MQTT client identifier (default: 'dirigera-bridge')
+    MQTT_KEEPALIVE            MQTT keepalive interval in seconds (default: 60)
+    MQTT_BASE_TOPIC           Base topic prefix for state/command topics (default: 'dirigera')
+    MQTT_QOS                  MQTT QoS level 0, 1, or 2 (default: 1)
+    MQTT_TLS                  Use TLS for the MQTT connection (default: false)
+    MQTT_RECONNECT            Let the HASDK auto-reconnect the MQTT transport (default: true)
+    MQTT_RECONNECT_DELAY_MIN  Minimum HADSK MQTT reconnect delay in seconds (default: 1.0)
+    MQTT_RECONNECT_DELAY_MAX  Maximum HASDK MQTT reconnect deay in seconds (default: 60.0)
+    DISCOVERY_PREFIX          HA MQTT discovery prefix (default: 'homeassistant')
+    LOG_LEVEL                 Logging level string (default: 'INFO')
+    METRICS_INTERVAL          Seconds between metrics log snapshots (default: 300)
+    WS_PING_INTERVAL          Seconds between WebSocket keepalive pings (default: 30)
+    WS_PING_TIMEOUT           Seconds to wait for a pong reply (default: 10)
+    RECONNECT_DELAY_INITIAL   First reconnect delay in seconds (default: 1.0)
+    RECONNECT_DELAY_MAX       Maximum reconnect delay in seconds (default: 60.0)
 
 Used by:
     - main.py                           (calls load_settings() once at startup)
@@ -148,6 +151,31 @@ class Settings:
             subscriptions. 0 = at most once, 1 = at least once,
             2 = exactly once. Default: 1.
 
+        mqtt_tls (bool):
+            Whether the HASDK's MQTT transport connects over TLS.
+            Default: False.
+
+        mqtt_reconnect (bool):
+            Whether the HASDK's MQTT transport auto-reconnects on
+            connection loss. This is seperate from - and does not
+            affect - the bridge's own retry_with_backoff() calls
+            around HAClient.connect(); it controls the HASDK's
+            internal transport-level behaviour only. Default: True.
+
+        mqtt_reconnect_delay_min (float):
+            Minimum HASDK MQTT reconnect delay in seconds. Distinct
+            from reconnect_delay_initial, which governs this
+            bridge's own Dirigera WebSocket backoff — the two are
+            unrelated layers and are intentionally named
+            differently to avoid being confused with each other.
+            Minimum: 0.1. Default: 1.0.
+
+        mqtt_reconnect_delay_max (float):
+            Maximum HASDK MQTT reconnect delay in seconds. Distinct
+            from reconnect_delay_max (Dirigera WebSocket backoff)
+            for the same reason as mqtt_reconnect_delay_min.
+            Must be >= mqtt_reconnect_delay_min. Default: 60.0.
+
     Fields — Home Assistant:
         discovery_prefix (str):
             Home Assistant MQTT discovery topic prefix. Must match the
@@ -191,6 +219,10 @@ class Settings:
     mqtt_keepalive: int
     mqtt_base_topic: str
     mqtt_qos: int
+    mqtt_tls: bool
+    mqtt_reconnect: bool
+    mqtt_reconnect_delay_min: float
+    mqtt_reconnect_delay_max: float
 
     # ── Home Assistant ────────────────────────────────────────────────────
     discovery_prefix: str
@@ -226,6 +258,10 @@ class Settings:
             f"mqtt_keepalive={self.mqtt_keepalive}, "
             f"mqtt_base_topic={self.mqtt_base_topic!r}, "
             f"mqtt_qos={self.mqtt_qos}, "
+            f"mqtt_tls={self.mqtt_tls}, "
+            f"mqtt_reconnect={self.mqtt_reconnect}, "
+            f"mqtt_reconnect_delay_min={self.mqtt_reconnect_delay_min}, "
+            f"mqtt_reconnect_delay_max={self.mqtt_reconnect_delay_max}, "
             f"discovery_prefix={self.discovery_prefix!r}, "
             f"log_level={self.log_level!r}, "
             f"metrics_interval={self.metrics_interval}, "
@@ -300,6 +336,14 @@ def load_settings(env_file: str | None = None) -> Settings:
     mqtt_keepalive = _optional_int("MQTT_KEEPALIVE", default=60, min_val=1)
     mqtt_base_topic = _optional_str("MQTT_BASE_TOPIC", default="dirigera")
     mqtt_qos = _optional_int("MQTT_QOS", default=1, min_val=0, max_val=2)
+    mqtt_tls = _optional_bool("MQTT_TLS", default=False)
+    mqtt_reconnect = _optional_bool("MQTT_RECONNECT", default=True)
+    mqtt_reconnect_delay_min = _optional_float(
+        "MQTT_RECONNECT_DELAY_MIN", default=1.0, min_val=0.1
+    )
+    mqtt_reconnect_delay_max = _optional_float(
+        "MQTT_RECONNECT_DELAY_MAX", default=60.0, min_val=1.0
+    )
 
     # ── HA optional fields ────────────────────────────────────────────────
     discovery_prefix = _optional_str("DISCOVERY_PREFIX", default="homeassistant")
@@ -334,6 +378,13 @@ def load_settings(env_file: str | None = None) -> Settings:
             f"premature broker disconnects during WebSocket probes",
         )
 
+    if mqtt_reconnect_delay_max < mqtt_reconnect_delay_min:
+        raise DirigeraBridgeError(
+            ErrorCode.CONFIG_INVALID_VALUE,
+            f"MQTT_RECONNECT_DELAY_MAX ({mqtt_reconnect_delay_max}) must be >= "
+            f"MQTT_RECONNECT_DELAY_MIN ({mqtt_reconnect_delay_min})",
+        )
+
     # ── Construct and cache ───────────────────────────────────────────────
     _settings = Settings(
         dirigera_ip=dirigera_ip,
@@ -346,6 +397,10 @@ def load_settings(env_file: str | None = None) -> Settings:
         mqtt_keepalive=mqtt_keepalive,
         mqtt_base_topic=mqtt_base_topic,
         mqtt_qos=mqtt_qos,
+        mqtt_tls=mqtt_tls,
+        mqtt_reconnect=mqtt_reconnect,
+        mqtt_reconnect_delay_min=mqtt_reconnect_delay_min,
+        mqtt_reconnect_delay_max=mqtt_reconnect_delay_max,
         discovery_prefix=discovery_prefix,
         log_level=log_level,
         metrics_interval=metrics_interval,
@@ -407,6 +462,42 @@ def _require_str(key: str) -> str:
         )
 
     return value
+
+
+_TRUE_VALUES = {"1", "true", "yes", "on"}
+_FALSE_VALUES = {"0", "false", "no", "off"}
+
+
+def _option_bool(key: str, default: bool) -> bool:
+    """
+    Read an optional environment variable as a boolean.
+
+    Accepts (case-insensitive): '1'/'0', 'true'/'false', 'yes'/'no',
+    'on'/'off'. Uses default if absent or empty.
+
+    Raises:
+        DirigeraBridgeError:    CONFIG_INVALID_VALUE if the value is
+                    not a recognised boolean string.
+    """
+
+    raw = os.environ.get(key, "").strip()
+
+    if not raw:
+        return default
+
+    lowered = raw.lower()
+
+    if lowered in _TRUE_VALUES:
+        return True
+
+    if lowered in _FALSE_VALUES:
+        return False
+
+    raise DirigeraBridgeError(
+        ErrorCode.CONFIG_INVALID_VALUE,
+        f"Environment variable '{key}' must be a boolean "
+        f"(1/0, true/false, yes/no, on/off), got {raw!r}",
+    )
 
 
 def _optional_str(key: str, default: str) -> str:
