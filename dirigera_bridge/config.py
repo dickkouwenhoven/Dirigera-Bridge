@@ -338,9 +338,7 @@ def load_settings(env_file: str | None = None) -> Settings:
     mqtt_qos = _optional_int("MQTT_QOS", default=1, min_val=0, max_val=2)
     mqtt_tls = _optional_bool("MQTT_TLS", default=False)
     mqtt_reconnect = _optional_bool("MQTT_RECONNECT", default=True)
-    mqtt_reconnect_delay_min = _optional_float(
-        "MQTT_RECONNECT_DELAY_MIN", default=1.0, min_val=0.1
-    )
+    mqtt_reconnect_delay_min = _optional_float("MQTT_RECONNECT_DELAY_MIN", default=1.0, min_val=0.1)
     mqtt_reconnect_delay_max = _optional_float(
         "MQTT_RECONNECT_DELAY_MAX", default=60.0, min_val=1.0
     )
