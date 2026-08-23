@@ -575,6 +575,16 @@ class HAClient:
         each attempt without duplicating the construction logic.
         """
 
+        # Every MQTTSettings parameter is supplied explicitly here,
+        # sourced from this bridge's own Settings object. MQTTSettings
+        # falls back to os.getenv(...) internally for any parameter
+        # left as None — leaving any of these unset would let the
+        # HASDK silently read environment variables (some of which,
+        # like RECONNECT_DELAY_MAX, collide by name with unrelated
+        # settings this bridge already defines for the Dirigera
+        # WebSocket layer). Passing all of them makes this bridge's
+        # Settings the single, complete source of truth and makes
+        # the HASDK's internal env fallback unreachable.
         mqtt_config = MQTTSettings(
             host=self._settings.mqtt_host,
             port=self._settings.mqtt_port,
@@ -583,6 +593,10 @@ class HAClient:
             client_id=self._settings.mqtt_client_id,
             keepalive=self._settings.mqtt_keepalive,
             discovery_prefix=self._settings.discovery_prefix,
+            tls=self._settings.mqtt_tls,
+            reconnect=self._settings.mqtt_reconnect,
+            reconnect_delay_min=self._settings.mqtt_reconnect_delay_min,
+            reconnect_delay_max=self._settings.mqtt_reconnect_delay_max,
         )
 
         self._mqtt_client = AsyncMQTTClient(config=mqtt_config)
