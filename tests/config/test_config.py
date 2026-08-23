@@ -251,7 +251,7 @@ class TestLoadSettingsInvalidValues:
 
         assert exc_info.value.code == ErrorCode.CONFIG_INVALID_VALUE
 
- 
+
 # ── load_settings() — cross-field validation ──────────────────────────────────
 
 
@@ -428,7 +428,7 @@ class TestLoadSettingsOptionalCustomValues:
         monkeypatch.setenv("MQTT_RECONNECT", value)
         s = load_settings()
         assert s.mqtt_reconnect is False
-    
+
     @pytest.mark.unit
     @pytest.mark.parametrize("level", ["debug", "DEBUG", "Info", "WARNING", "error", "CRITICAL"])
     def test_log_level_case_insensitive(
@@ -561,7 +561,7 @@ class TestOptionalValueHelpers:
             _optional_bool("TEST_OPTIONAL_BOOL", True)
 
         assert exc_info.value.code == ErrorCode.CONFIG_INVALID_VALUE
-    
+
     @pytest.mark.unit
     def test_optional_float_uses_default_for_missing_or_blank_value(
         self,
