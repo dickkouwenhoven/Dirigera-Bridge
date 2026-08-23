@@ -468,7 +468,7 @@ _TRUE_VALUES = {"1", "true", "yes", "on"}
 _FALSE_VALUES = {"0", "false", "no", "off"}
 
 
-def _option_bool(key: str, default: bool) -> bool:
+def _optional_bool(key: str, default: bool) -> bool:
     """
     Read an optional environment variable as a boolean.
 
