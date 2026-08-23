@@ -4,20 +4,18 @@ main.py
 Application entrypoint for the Dirigera MQTT Bridge.
 
 Role & Responsibility:
-    Constructs every dependency, wires them together, and hands
-    control to the Orchestrator. This is the only file that knows
-    about all dependencies simultaneously — the Orchestrator receives
-    them via constructor injection and never imports from this file.
 
     Following the Composition Root pattern: all object creation happens
     here, all wiring happens here, and then run() is called once.
+    The CLI/Docker composition root. Loads .env, configures logging,
+    delegates dependency wiring to dirigera_bridge.factory.build_orchestrator(),
+    and runs the result under asyncio with SIGINT/SIGTERM handling.
 
 What it does:
     1. Configures structured logging from the LOG_LEVEL setting
     2. Loads and validates all settings from .env
-    3. Constructs every core, dirigera, mapping, and HA object
-    4. Creates the Orchestrator with all dependencies injected
-    5. Runs the Orchestrator under asyncio, handling SIGINT/SIGTERM
+    3. Calls build_orchestrator() to construct and wire dependencies
+    4. Runs the Orchestrator under asyncio, handling SIGINT/SIGTERM
        for clean shutdown
 
 Arguments / Configuration:
@@ -25,9 +23,7 @@ Arguments / Configuration:
     No command-line arguments are required.
 
 Not responsible for:
-    - Any business logic (that is the Orchestrator)
-    - Any network I/O (that is the layer clients)
-    - Configuration validation (that is config.py)
+    - Dependency construction and wiring (that is factory.py)
 """
 
 from __future__ import annotations
@@ -37,24 +33,9 @@ import logging
 import signal
 import sys
 
-from .config import Settings, load_settings
-from .core.discovery_cache import DiscoveryCache
+from .config import load_settings
 from .core.errors import DirigeraBridgeError
-from .core.event_bus import AsyncEventBus
-from .core.lifecycle import ServiceLifecycle
-from .core.metrics import MetricsStore
-from .core.state_cache import StateCache
-from .dirigera.rest_client import DirigeraRestClient
-from .dirigera.websocket_client import DirigeraWebSocketClient
-from .ha.ha_client import HAClient
-from .mapping.command_mapper import CommandMapper
-from .mapping.device_mapper import DeviceMapper
-from .mapping.state_mapper import StateMapper
-from .orchestrator import Orchestrator
-
-# Hardcoded here — not an env variable — so it cannot be accidentally overridden.
-SERVICE_VERSION = "1.0.0"
-SERVICE_NAME = "dirigera-mqtt-bridge"
+from .factory import SERVICE_NAME, SERVICE_VERSION, build_orchestrator
 
 
 def configure_logging(log_level: str) -> None:
@@ -83,87 +64,6 @@ def configure_logging(log_level: str) -> None:
     # Suppress noisy third-party loggers at WARNING level
     for noisy_logger in ("asyncio", "aiohttp", "websockets", "aiomqtt"):
         logging.getLogger(noisy_logger).setLevel(logging.WARNING)
-
-
-def build_orchestrator(settings: Settings) -> Orchestrator:
-    """
-    Construct all application dependencies and wire them into the
-    Orchestrator.
-
-    This function is the Composition Root — every object in the
-    application is created here, in dependency order, and injected
-    into the objects that need it.
-
-    Args:
-        settings (Settings): Validated application settings.
-
-    Returns:
-        Orchestrator: Fully wired orchestrator ready to run.
-    """
-
-    logger = logging.getLogger(__name__)
-    logger.info(
-        "%s v%s — building dependency graph",
-        SERVICE_NAME,
-        SERVICE_VERSION,
-    )
-
-    # ── Core infrastructure ───────────────────────────────────────────────
-    event_bus = AsyncEventBus()
-    lifecycle = ServiceLifecycle()
-    metrics = MetricsStore()
-    state_cache = StateCache()
-    discovery_cache = DiscoveryCache()
-
-    # ── Dirigera layer ────────────────────────────────────────────────────
-    rest_client = DirigeraRestClient(
-        settings=settings,
-        metrics=metrics,
-    )
-
-    ws_client = DirigeraWebSocketClient(
-        settings=settings,
-        event_bus=event_bus,
-        lifecycle=lifecycle,
-        metrics=metrics,
-    )
-
-    # ── HA / MQTT layer ───────────────────────────────────────────────────
-    ha_client = HAClient(
-        settings=settings,
-        metrics=metrics,
-        lifecycle=lifecycle,
-        discovery_cache=discovery_cache,
-    )
-
-    # ── Mapping layer ─────────────────────────────────────────────────────
-    device_mapper = DeviceMapper(metrics=metrics)
-    state_mapper = StateMapper()
-    command_mapper = CommandMapper()
-
-    # ── Orchestrator ──────────────────────────────────────────────────────
-    orchestrator = Orchestrator(
-        settings=settings,
-        event_bus=event_bus,
-        lifecycle=lifecycle,
-        metrics=metrics,
-        state_cache=state_cache,
-        discovery_cache=discovery_cache,
-        ha_client=ha_client,
-        ws_client=ws_client,
-        rest_client=rest_client,
-        device_mapper=device_mapper,
-        state_mapper=state_mapper,
-        command_mapper=command_mapper,
-    )
-
-    logger.info(
-        "%s v%s — dependency graph built successfully",
-        SERVICE_NAME,
-        SERVICE_VERSION,
-    )
-
-    return orchestrator
 
 
 async def async_main() -> None:
