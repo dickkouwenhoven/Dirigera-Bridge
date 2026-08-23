@@ -1,20 +1,21 @@
 """
 Tests for the application entrypoint in dirigera_bridge.main.
 
-The main module is the Composition Root of the application. It is responsible
-for:
+The main module is the CLI/Docker composition root. It is responsible for:
 
 - Configuring logging
 - Loading application settings
-- Constructing all application dependencies
-- Wiring those dependencies into the Orchestrator
+- Delegating dependency construction and wiring to
+  dirigera_bridge.factory.build_orchestrator()
 - Registering SIGINT/SIGTERM handlers
 - Starting and stopping the Orchestrator
 - Handling startup and runtime errors
 
-These tests deliberately mock the actual application dependencies. The purpose
-is to verify the wiring and control flow without creating real network
-connections to the Dirigera hub or MQTT broker.
+These tests deliberately mock build_orchestrator() and the other
+dependencies of async_main(). The purpose is to verify main.py's own
+control flow without creating real network connections or exercising
+the dependency-wiring logic, which is tested separately in
+test_factory.py.
 
 The individual components and clients are tested separately in their own test
 modules.
@@ -66,100 +67,6 @@ def test_configure_logging_invalid_level_defaults_to_info() -> None:
         main_module.configure_logging("THIS_IS_NOT_A_LEVEL")
 
     assert mock_basic_config.call_args.kwargs["level"] == logging.INFO
-
-
-def test_build_orchestrator() -> None:
-    """
-    Verify that build_orchestrator() creates and wires all dependencies.
-
-    This is the most important test for the Composition Root. Each concrete
-    dependency is replaced by a mock so that no real network connections or
-    external resources are created.
-
-    The test verifies that:
-
-    1. Core infrastructure objects are created.
-    2. Dirigera clients receive the correct dependencies.
-    3. The Home Assistant client receives the correct dependencies.
-    4. Mapping objects are created correctly.
-    5. The Orchestrator receives every required dependency.
-    6. The resulting Orchestrator is returned.
-    """
-
-    # Settings are passed through to the clients and Orchestrator. The actual
-    # Settings object is not relevant to this wiring test.
-    settings = MagicMock()
-
-    # Replace every dependency constructed by build_orchestrator() with a
-    # mock. This keeps the test completely isolated from external resources.
-    with (
-        patch("dirigera_bridge.main.AsyncEventBus") as event_bus,
-        patch("dirigera_bridge.main.ServiceLifecycle") as lifecycle,
-        patch("dirigera_bridge.main.MetricsStore") as metrics,
-        patch("dirigera_bridge.main.StateCache") as state_cache,
-        patch("dirigera_bridge.main.DiscoveryCache") as discovery_cache,
-        patch("dirigera_bridge.main.DirigeraRestClient") as rest_client,
-        patch("dirigera_bridge.main.DirigeraWebSocketClient") as ws_client,
-        patch("dirigera_bridge.main.HAClient") as ha_client,
-        patch("dirigera_bridge.main.DeviceMapper") as device_mapper,
-        patch("dirigera_bridge.main.StateMapper") as state_mapper,
-        patch("dirigera_bridge.main.CommandMapper") as command_mapper,
-        patch("dirigera_bridge.main.Orchestrator") as orchestrator,
-    ):
-        result = main_module.build_orchestrator(settings)
-
-    # The function should return the Orchestrator that it constructed.
-    assert result is orchestrator.return_value
-
-    # Verify that the REST client receives the validated settings and metrics.
-    rest_client.assert_called_once_with(
-        settings=settings,
-        metrics=metrics.return_value,
-    )
-
-    # Verify that the WebSocket client receives the shared event bus,
-    # lifecycle manager, metrics store, and settings.
-    ws_client.assert_called_once_with(
-        settings=settings,
-        event_bus=event_bus.return_value,
-        lifecycle=lifecycle.return_value,
-        metrics=metrics.return_value,
-    )
-
-    # Verify the Home Assistant client receives the shared metrics,
-    # lifecycle, discovery cache, and settings.
-    ha_client.assert_called_once_with(
-        settings=settings,
-        metrics=metrics.return_value,
-        lifecycle=lifecycle.return_value,
-        discovery_cache=discovery_cache.return_value,
-    )
-
-    # DeviceMapper requires the shared metrics store.
-    device_mapper.assert_called_once_with(
-        metrics=metrics.return_value,
-    )
-
-    # These mapping classes currently have no constructor dependencies.
-    state_mapper.assert_called_once_with()
-    command_mapper.assert_called_once_with()
-
-    # Finally, verify the complete dependency graph passed to the
-    # Orchestrator. This is the central purpose of this test.
-    orchestrator.assert_called_once_with(
-        settings=settings,
-        event_bus=event_bus.return_value,
-        lifecycle=lifecycle.return_value,
-        metrics=metrics.return_value,
-        state_cache=state_cache.return_value,
-        discovery_cache=discovery_cache.return_value,
-        ha_client=ha_client.return_value,
-        ws_client=ws_client.return_value,
-        rest_client=rest_client.return_value,
-        device_mapper=device_mapper.return_value,
-        state_mapper=state_mapper.return_value,
-        command_mapper=command_mapper.return_value,
-    )
 
 
 @pytest.mark.asyncio
