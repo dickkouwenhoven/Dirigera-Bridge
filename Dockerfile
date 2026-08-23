@@ -93,5 +93,9 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
 # via docker-compose env_file directive. This prevents secrets from being
 # baked into the image layer history.
 
-# Entrypoint — run main.py directly via Python
-CMD ["python", "main.py"]
+# Entrypoint — run the package's __main__.py via `python -m`.
+# WORKDIR is /dirigera_bridge and the package source lands at
+# /dirigera_bridge/dirigera_bridge/ (see COPY above), so `python main.py`
+# would look in the wrong place — `python -m dirigera_bridge` resolves
+# correctly against PYTHONPATH regardless of exact directory nesting.
+CMD ["python", "-m", "dirigera_bridge"]
