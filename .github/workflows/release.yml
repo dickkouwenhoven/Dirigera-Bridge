@@ -22,19 +22,33 @@
 #     ci.yml — this project's test suite includes integration tests
 #     (tests/integration/) that need a real broker, unlike ha_mqtt_sdk's
 #     fully-mocked suite.
+#   - Added a "docker" job: publishes ghcr.io/<owner>/<repo> (multi-arch:
+#     amd64 + arm64, covering both a dev laptop and a Raspberry Pi
+#     deployment) on every tag. This runs entirely on GitHub's hosted
+#     runner using the automatic GITHUB_TOKEN — no Docker Hub account,
+#     no extra secret, and nothing required on your local machine.
 #
-# Before the first tag push:
-#   This project's README currently states "Private project — all rights
-#   reserved" (see README.md's License section). Publishing to production
-#   PyPI makes the source publicly downloadable regardless of that notice —
-#   confirm that's actually intended (and update the License section to
-#   match) before pushing a non-prerelease tag. Pushing an alpha/beta/rc tag
+# First-time GHCR gotcha:
+#   A package published under a *personal* GitHub account (not an
+#   organization) defaults to PRIVATE the first time it's pushed, even if
+#   the repository itself is public — GitHub doesn't auto-inherit
+#   visibility, only access permissions. After your first tag push,
+#   go to your GitHub profile → Packages → dirigera-bridge → Package
+#   settings → Change visibility → Public, or it won't be pullable by
+#   anyone but you.
+#
+# Before the first PyPI tag push:
+#   Publishing to production PyPI makes the source publicly downloadable.
+#   This project intended to be open source (MIT, see LICENSE), so
+#   that's expected - just confirm README.md's License section reflects
+#   that before pushing a non-prerelease tag. Pushing an alpha/beta/rc tag
 #   only publishes to Test PyPI, which is lower-stakes if you want to dry-run
 #   this pipeline first.
 #
 # Required repository secrets:
-#   PYPI_API_TOKEN       — https://pypi.org/manage/account/token/
-#   TEST_PYPI_API_TOKEN  — https://test.pypi.org/manage/account/token/
+#   PYPI_API_TOKEN        — https://pypi.org/manage/account/token/
+#   TEST_PYPI_API_TOKEN   — https://test.pypi.org/manage/account/token/
+#   (GHCR needs no secret — it uses the automatic GITHUB_TOKEN)
 #
 # Required GitHub environments:
 #   pypi       — for production releases
@@ -56,6 +70,7 @@ on:
 
 permissions:
   contents: write   # needed to create GitHub Release
+  packages: write   # needed to push the Docker image to GHCR
 
 jobs:
 
@@ -240,7 +255,66 @@ jobs:
           name: dist
           path: dist/
 
-  # ── 4. Create GitHub Release ──────────────────────────────────────────────
+  # ── 4. Build and push Docker image to GHCR ──────────────────────────────────────────────
+
+  docker:
+    name: Publish Docker image
+    runs-on: ubuntu-latest
+    needs: [prepare, verify]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Compute image name and tags
+        id: meta
+        run: |
+          # GHCR requires an all-lowercase image name; github.repository
+          # keeps whatever case the repo name has (Dirigera-Bridge), so
+          # this lowercases it rather than hardcoding it.
+          IMAGE="ghcr.io/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')"
+          VERSION="${{ needs.prepare.outputs.version }}"
+
+          TAGS="$IMAGE:$VERSION"
+          if [ "${{ needs.prepare.outputs.is_prerelease }}" = "false" ]; then
+            TAGS="$TAGS
+          $IMAGE:latest"
+          fi
+
+          echo "image=$IMAGE" >> $GITHUB_OUTPUT
+          {
+            echo "tags<<TAGS_EOF"
+            echo "$TAGS"
+            echo "TAGS_EOF"
+          } >> $GITHUB_OUTPUT
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.version=${{ needs.prepare.outputs.version }}
+          # This label is what lets the published package auto-link to
+          # this repo (see the GHCR visibility note in the header comment).
+
+  # ── 5. Create GitHub Release ──────────────────────────────────────────────
 
   release:
     name: Create GitHub Release
