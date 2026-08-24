@@ -345,6 +345,9 @@ jobs:
     runs-on: ubuntu-latest
     needs: [prepare, release]
 
+    permissions:
+      id-token: write
+
     environment:
       name: ${{ needs.prepare.outputs.pypi_env }}
       url: ${{ needs.prepare.outputs.pypi_env == 'test-pypi' && 'https://test.pypi.org/project/dirigera_bridge/' || 'https://pypi.org/project/dirigera_bridge/' }}
