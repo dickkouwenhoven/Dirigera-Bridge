@@ -487,3 +487,11 @@ Attribution
 You're welcome to use and adapt this code for your own projects. If you do, I would appreciate it if you kept the original author attribution and mentioned dickkouwenhoven as the original author.
 
 Attribution is appreciated, but is not a requirement of the MIT License.
+
+---
+
+## Author
+
+Dick Kouwenhoven
+
+GitHub: https://github.com/dickkouwenhoven/Dirigera-Bridge
