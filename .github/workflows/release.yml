@@ -11,7 +11,7 @@
 # Pipeline:
 #   1. Run full CI (lint, format check, type check, tests) to verify the tag is clean
 #   2. Extract the release notes for this version from CHANGELOG.md
-#   3. Build the Python distribution (sdist  wheel)
+#   3. Build the Python distribution (sdist + wheel)
 #   4. Create a GitHub Release with the extracted notes and built artifacts
 #   5. Publish to Test PyPI (pre-release) or production PyPI (final)
 #
@@ -49,10 +49,10 @@ name: Release
 on:
   push:
     tags:
-      - "v[0-9].[0-9].[0-9]"          # final:             v0.1.0, v1.0.0
-      - "v[0-9].[0-9].[0-9]a[0-9]"   # alpha:             v0.1.0a1
-      - "v[0-9].[0-9].[0-9]b[0-9]"   # beta:              v0.1.0b1
-      - "v[0-9].[0-9].[0-9]rc[0-9]"  # release candidate: v0.1.0rc1
+      - "v[0-9]+.[0-9]+.[0-9]+"          # final:             v0.1.0, v1.0.0
+      - "v[0-9]+.[0-9]+.[0-9]+a[0-9]+"   # alpha:             v0.1.0a1
+      - "v[0-9]+.[0-9]+.[0-9]+b[0-9]+"   # beta:              v0.1.0b1
+      - "v[0-9]+.[0-9]+.[0-9]+rc[0-9]+"  # release candidate: v0.1.0rc1
 
 permissions:
   contents: write   # needed to create GitHub Release
