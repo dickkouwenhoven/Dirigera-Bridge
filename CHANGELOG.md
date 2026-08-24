@@ -30,6 +30,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - README sections: "Two ways to use this project" (application vs. library),
   "Enabling MQTT in Home Assistant", and "Setting up an MQTT broker" — each
   fully described rather than just linked out
+- Added package publication in workflow `release.yml`.
 
 ### Fixed
 - `Dockerfile`: `CMD ["python", "main.py"]` pointed at a path that no longer
