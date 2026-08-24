@@ -1,20 +1,21 @@
-Dirigera MQTT Bridge — Test Suite
+# Dirigera MQTT Bridge — Test Suite
 
 This document describes the test suite for the Dirigera MQTT Bridge: how to install the development environment, run tests, generate coverage reports, run code-quality checks, understand the test structure, and add new tests.
 
 The test suite is designed to exercise the bridge from small pure-Python units through multi-layer orchestration flows, while keeping tests deterministic and independent of a real Dirigera hub, Home Assistant instance, or MQTT broker.
-Quick start
 
+
+## Quick start
 The recommended development setup is an editable installation with all development dependencies:
 
-python -m pip install -e ".[dev]"
+```python -m pip install -e ".[dev]"```
 
 Then run the complete test suite:
 
-make test
+```make test```
 
 Useful commands:
-
+```
 # All tests
 make test
 
@@ -44,26 +45,25 @@ make test-k KEY=lifecycle
 
 # Remove generated test/build artefacts
 make clean
-
+```
 For a complete CI-equivalent test run, use:
-
+```
 python -m pytest \
   --cov \
   --cov-report=term-missing \
   --cov-fail-under=100 \
   -v
-
+```
 The GitHub Actions CI currently runs the test suite against Python 3.12, 3.13, and 3.14 and requires 100% coverage.
-Development prerequisites
+
+## Development prerequisites
 
 The project currently requires Python 3.12 or newer.
 
 The application and development dependencies are defined by pyproject.toml. The simplest setup is:
 
 python -m pip install -e ".[dev]"
-
 This installs:
-
     Application dependencies
     pytest
     pytest-asyncio
@@ -71,19 +71,17 @@ This installs:
     ruff
     mypy
     Other development tooling declared by the project
-
 Alternatively, the repository contains:
 
 requirements-dev.txt
-
 which installs the project in editable mode with its development extras.
 
 The Home Assistant MQTT SDK is installed from PyPI as ha_mqtt_sdk; there is no local sdk_src/ directory required by the current test suite.
-Test philosophy
 
+## Test philosophy
 The test suite is deliberately layered.
-Unit tests
 
+## Unit tests
 Unit tests focus on one class or function at a time.
 
 They should:
@@ -94,9 +92,7 @@ They should:
     Avoid Home Assistant.
     Exercise actual application code rather than replacing the code under test with mocks.
     Use mocks only at genuine external boundaries.
-
 Examples include:
-
     Lifecycle state transitions.
     Retry/backoff calculations.
     State and discovery caches.
@@ -104,15 +100,12 @@ Examples include:
     Dirigera payload parsing.
     Device and state mapping.
     Domain mapper behavior.
-
-Integration tests
-
+## Integration tests
 Integration tests exercise several application layers together.
 
 They still do not require a physical Dirigera hub or Home Assistant instance. Network-facing application clients are replaced with controlled test doubles where appropriate.
 
 The main integration flow is:
-
 Dirigera events
       │
       ▼
@@ -128,8 +121,7 @@ Dirigera events
               ▼
        Fake MQTT transport
 
-HA/MQTT client tests
-
+## HA/MQTT client tests
 tests/ha/test_ha_client.py occupies a special position.
 
 It uses a FakeMQTTClient instead of a real MQTT transport, but runs the real HA MQTT SDK underneath the bridge's HAClient.
@@ -146,82 +138,63 @@ This means the tests exercise SDK behavior that the bridge actually depends on, 
     SDK validation.
 
 This is intentionally stronger than simply mocking the entire SDK away.
-Running tests
-All tests
+
+## Running tests
+### All tests
 
 make test
-
 Equivalent:
-
 python -m pytest tests/
-
 The repository's pytest configuration already sets:
-
 asyncio_mode = auto
 testpaths = tests
-
 so no additional pytest arguments are normally required.
-Unit tests
 
+## Unit tests
 Run only tests marked with unit:
-
 make test-unit
-
 or:
-
 python -m pytest tests/ -m unit
-
 Unit tests should remain fast and isolated.
-Integration tests
 
+## Integration tests
 Run only tests marked with integration:
-
 make test-integration
-
 or:
-
 python -m pytest tests/ -m integration
-
 Integration tests currently concentrate on multi-layer orchestration behavior.
-Exclude slow tests
 
+### Exclude slow tests
 python -m pytest tests/ -m "not slow"
 
-A specific test file
-
+### A specific test file
 make test-file FILE=tests/core/test_lifecycle.py
-
 or:
-
 python -m pytest tests/core/test_lifecycle.py -v
 
-A specific test class
-
+### A specific test class
 python -m pytest \
   tests/core/test_lifecycle.py::TestValidTransitions \
   -v
 
-A specific test function
-
+### A specific test function
 python -m pytest \
   tests/core/test_lifecycle.py::TestValidTransitions::test_created_to_starting \
   -v
 
-Tests matching a keyword
-
+### Tests matching a keyword
 make test-k KEY=lifecycle
-
 or:
-
 python -m pytest tests/ -k lifecycle -v
 
 Multiple expressions can be combined using normal pytest -k syntax:
 
 python -m pytest tests/ -k "light and not slow" -v
 
-Test markers
+### Test markers
 
 The repository defines three pytest markers:
+
 Marker	Description
 unit	Pure unit tests with no external dependencies
 integration	Tests that exercise multiple application layers together
@@ -246,7 +219,9 @@ python -m pytest tests/ -m integration
 python -m pytest tests/ -m "not slow"
 
 The pytest configuration uses strict markers, so a new marker must be explicitly added to pytest.ini or pyproject.toml.
-Test structure
+
+
+### Test structure
 
 The current test suite is organized to mirror the application's architecture:
 
@@ -309,7 +284,8 @@ tests/
     └── test_orchestrator_flow.py        ← end-to-end application flow
 
 The structure intentionally follows the production package layout and keeps tests close to the responsibility they verify.
-Shared fixtures
+
+### Shared fixtures
 
 Common fixtures live in:
 
