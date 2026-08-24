@@ -41,8 +41,8 @@
 #   test-pypi  — for pre-releases
 #
 # How to trigger:
-#   Pre-release:  git tag v0.1.0a1  && git push origin v0.1.0a1
-#   Final:        git tag v0.1.0    && git push origin v0.1.0
+#   Pre-release:  git tag v1.0.0a1  && git push origin v1.0.0a1
+#   Final:        git tag v1.0.0    && git push origin v1.0.0
 
 name: Release
 
