@@ -649,7 +649,7 @@ class Orchestrator:
         async def _handle_command(topic: str, payload: str) -> None:
 
             logger.debug(
-                "Orchestrator: command received for %s (device_type=%s, payload=%r)",
+                "Orchestrator: command received for %s on %s (device_type=%s, payload=%r)",
                 logical_id,
                 device_type,
                 topic,
