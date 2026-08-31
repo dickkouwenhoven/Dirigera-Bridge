@@ -7,6 +7,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-08-31
+
+### Changed
+- `command_mapper` - removed light brightness conversion. It was not needed because discovery already declares brightness_scale=100.
+
+
 ---
 
 ## [1.0.0] - 2026-08-24
