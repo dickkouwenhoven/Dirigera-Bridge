@@ -11,6 +11,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 - `command_mapper` - removed light brightness conversion. It was not needed because discovery already declares brightness_scale=100.
+- `orchestrator` - the logger.debug within _make_command_callback missed one variable to present. This is corrected. 
 
 
 ---
