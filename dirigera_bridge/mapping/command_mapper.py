@@ -288,10 +288,11 @@ class CommandMapper:
 
             # ── Brightness ────────────────────────────────────────────────
             if "brightness" in parsed:
-                # HA brightness: 0-255, Dirigera lightLevel: 1-100
+                # light.py declares brightness_scale=100 in the discovery
+                # config, so HA already sends this value on Dirigera's
+                # native 1-100 lightlevel scale - no 0-255 conversion here.
                 ha_brightness = int(parsed["brightness"])
-                dirigera_level = max(1, min(100, round(ha_brightness * 100 / 255)))
-                attributes["lightLevel"] = dirigera_level
+                attributes["lightLevel"] = max(1, min(100, ha_brightness))
 
             # ── Colour temperature (mireds → Kelvin) ──────────────────────
             if "color_temp" in parsed:
