@@ -152,11 +152,11 @@ class TestMapCommandLight:
 
     @pytest.mark.unit
     def test_json_brightness(self, mapper: CommandMapper) -> None:
-        """JSON brightness 128 → lightLevel 50 (128/255*100)."""
-        payload = json.dumps({"brightness": 128})
+        """JSON brightness 78 → lightLevel 78 (No conversion needed)."""
+        payload = json.dumps({"brightness": 78})
         result = mapper.map_command(self.LID, "light", payload)
         assert result is not None
-        assert result.attributes["lightLevel"] == 50
+        assert result.attributes["lightLevel"] == 78
 
     @pytest.mark.unit
     def test_json_brightness_max(self, mapper: CommandMapper) -> None:
