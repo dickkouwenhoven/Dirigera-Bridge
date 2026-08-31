@@ -12,7 +12,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Changed
 - `command_mapper` - removed light brightness conversion. It was not needed because discovery already declares brightness_scale=100.
 - `orchestrator` - the logger.debug within _make_command_callback missed one variable to present. This is corrected. 
-
+- `rest_client` - Dirigera accepts multiple attributes, but it forgets the other attributes if 'isOn' is part of the REST call. The change made is that if there are multiple attributes, it splits the REST call into single attributes rest-api calls (one for 'isOn' and one for the other attributes.   
 
 ---
 
