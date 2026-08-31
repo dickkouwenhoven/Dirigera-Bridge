@@ -309,6 +309,18 @@ class DirigeraRestClient:
             DirigeraBridgeError: REST_AUTHENTICATION_ERROR on HTTP 401/403.
             DirigeraBridgeError: REST_DEVICE_NOT_FOUND on HTTP 404.
             DirigeraBridgeError: REST_TIMEOUT if the request times out.
+
+        Design notes:
+           Confirmed via direct REST testing against a live hub: Dirigera
+           returns 202 Accepted for a PATCH combining 'isOn' with any
+           other attribute (e.g. {"isOn": True, "lightLevel":90}) in a
+           single request, but silently applies only 'isOn' and drops
+           the rest - the physical device never changes. The same
+           attribute sent alone (e.g. {"lightLevel": 40}) in its own
+           PATCH is applied correctly. So whenever 'isOn' is combined
+           with other attributes, this method splits them into two
+           sequential PATCH requests - 'isON' first, then the rest -
+           instead of one combined request.
         """
 
         # ── Validation ────────────────────────────────────────────────────
@@ -324,8 +336,38 @@ class DirigeraRestClient:
                 "send_command: attributes must be a non-empty dict",
             )
 
-        # ── Build request ─────────────────────────────────────────────────
-        # url = f"{self._base_url}/devices/{logical_id}/attributes"
+        # ── Split isOn from other attributes - see Design Notes above  ────
+        if "isOn"  in attributes and len(attributes) > 1:
+            is_on_only = {"isOn": attributes["isOn"]}
+            remaining = {k: v for k, v in attributes.items() if k != "isOn"}
+
+            await self._send_single_patch(logical_id, is_on_only)
+            await self._send_single_patch(logical_id, remaining)
+            return
+
+        await self._send_single_patch(logical_id, attributes)
+
+    async def _send_single_patch(
+        self,
+        logical_id: str,
+        attributes: dict[str, Any],
+    ) -> None:
+        """
+        Send one PATCH request for a single attributes dict.
+
+        Extracted from send_command() so that a combined isOn + other
+        attributes command can be issued as two separate calls to this
+        method - see send_command()'s Design notes.
+
+        Args:
+           logical_id (str): Dirigera logical device_id.
+           attributes (dict): Attribute key-value pairs for this PATCH.
+
+        Raises:
+            DirigeraBridgeError: REST_* on any failure - same as
+                                 send_command() 
+        """
+
         url = f"{self._base_url}/devices/{logical_id}"
         payload = [{"attributes": attributes}]
 
