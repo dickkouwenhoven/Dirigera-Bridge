@@ -337,7 +337,7 @@ class DirigeraRestClient:
             )
 
         # ── Split isOn from other attributes - see Design Notes above  ────
-        if "isOn"  in attributes and len(attributes) > 1:
+        if "isOn" in attributes and len(attributes) > 1:
             is_on_only = {"isOn": attributes["isOn"]}
             remaining = {k: v for k, v in attributes.items() if k != "isOn"}
 
@@ -365,7 +365,7 @@ class DirigeraRestClient:
 
         Raises:
             DirigeraBridgeError: REST_* on any failure - same as
-                                 send_command() 
+                                 send_command()
         """
 
         url = f"{self._base_url}/devices/{logical_id}"
