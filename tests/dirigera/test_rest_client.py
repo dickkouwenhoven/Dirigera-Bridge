@@ -257,6 +257,93 @@ class TestSendCommand:
             call_kwargs = session.patch.call_args
             assert "isOn" in str(call_kwargs)
 
+     
+    @pytest.mark.unit
+    async def test_send_command_combined_isOn_splits_into_two_patches(
+        self, settings: Settings
+    ) -> None:
+        """
+        send_command() splits isOn + other attributes into two separate
+        PATCH requests, isOn first, instead of one combined request.
+
+        Dirigera's REST API accepts (202) a combined
+        {"isOn": ..., "lightLevel": ...} PATCH but silently applies only
+        isOn and drops the rest — confirmed via direct REST testing
+        against a live hub. See send_command()'s docstring.
+        """
+        client = make_client(settings)
+        mock_response = make_mock_response(202, {})
+
+        with patch.object(client, "_get_session") as mock_session:
+            session = MagicMock()
+            session.patch.return_value.__aenter__ = AsyncMock(return_value=mock_response)
+            session.patch.return_value.__aexit__ = AsyncMock(return_value=False)
+            mock_session.return_value = session
+
+            await client.send_command(
+                logical_id="light_abc_1",
+                attributes={"isOn": True, "lightLevel": 72},
+            )
+
+            # Two separate PATCH calls, not one combined call
+            assert session.patch.call_count == 2
+
+            first_call_kwargs = session.patch.call_args_list[0].kwargs
+            second_call_kwargs = session.patch.call_args_list[1].kwargs
+
+            # First call: isOn alone
+            assert first_call_kwargs["json"] == [{"attributes": {"isOn": True}}]
+            # Second call: remaining attributes alone, isOn excluded
+            assert second_call_kwargs["json"] == [{"attributes": {"lightLevel": 72}}]
+
+    @pytest.mark.unit
+    async def test_send_command_isOn_alone_sends_single_patch(
+        self, settings: Settings
+    ) -> None:
+        """send_command() does NOT split when isOn is the only attribute."""
+        client = make_client(settings)
+        mock_response = make_mock_response(202, {})
+
+        with patch.object(client, "_get_session") as mock_session:
+            session = MagicMock()
+            session.patch.return_value.__aenter__ = AsyncMock(return_value=mock_response)
+            session.patch.return_value.__aexit__ = AsyncMock(return_value=False)
+            mock_session.return_value = session
+
+            await client.send_command(
+                logical_id="light_abc_1",
+                attributes={"isOn": False},
+            )
+
+            assert session.patch.call_count == 1
+            call_kwargs = session.patch.call_args.kwargs
+            assert call_kwargs["json"] == [{"attributes": {"isOn": False}}]
+
+    @pytest.mark.unit
+    async def test_send_command_non_isOn_attributes_send_single_patch(
+        self, settings: Settings
+    ) -> None:
+        """send_command() does NOT split when isOn is absent entirely."""
+        client = make_client(settings)
+        mock_response = make_mock_response(202, {})
+
+        with patch.object(client, "_get_session") as mock_session:
+            session = MagicMock()
+            session.patch.return_value.__aenter__ = AsyncMock(return_value=mock_response)
+            session.patch.return_value.__aexit__ = AsyncMock(return_value=False)
+            mock_session.return_value = session
+
+            await client.send_command(
+                logical_id="light_abc_1",
+                attributes={"lightLevel": 40, "colorTemperature": 3000},
+            )
+
+            assert session.patch.call_count == 1
+            call_kwargs = session.patch.call_args.kwargs
+            assert call_kwargs["json"] == [
+                {"attributes": {"lightLevel": 40, "colorTemperature": 3000}}
+            ]
+        
     @pytest.mark.unit
     async def test_send_command_404_raises_device_not_found(self, settings: Settings) -> None:
         """HTTP 404 raises REST_DEVICE_NOT_FOUND."""
