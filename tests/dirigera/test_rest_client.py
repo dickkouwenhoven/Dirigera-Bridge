@@ -340,7 +340,7 @@ class TestSendCommand:
             assert call_kwargs["json"] == [
                 {"attributes": {"lightLevel": 40, "colorTemperature": 3000}}
             ]
-    
+
     @pytest.mark.unit
     async def test_send_command_404_raises_device_not_found(self, settings: Settings) -> None:
         """HTTP 404 raises REST_DEVICE_NOT_FOUND."""
