@@ -257,7 +257,6 @@ class TestSendCommand:
             call_kwargs = session.patch.call_args
             assert "isOn" in str(call_kwargs)
 
-     
     @pytest.mark.unit
     async def test_send_command_combined_isOn_splits_into_two_patches(
         self, settings: Settings
@@ -297,9 +296,7 @@ class TestSendCommand:
             assert second_call_kwargs["json"] == [{"attributes": {"lightLevel": 72}}]
 
     @pytest.mark.unit
-    async def test_send_command_isOn_alone_sends_single_patch(
-        self, settings: Settings
-    ) -> None:
+    async def test_send_command_isOn_alone_sends_single_patch(self, settings: Settings) -> None:
         """send_command() does NOT split when isOn is the only attribute."""
         client = make_client(settings)
         mock_response = make_mock_response(202, {})
@@ -343,7 +340,7 @@ class TestSendCommand:
             assert call_kwargs["json"] == [
                 {"attributes": {"lightLevel": 40, "colorTemperature": 3000}}
             ]
-        
+    
     @pytest.mark.unit
     async def test_send_command_404_raises_device_not_found(self, settings: Settings) -> None:
         """HTTP 404 raises REST_DEVICE_NOT_FOUND."""
