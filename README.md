@@ -47,6 +47,7 @@ All device types supported by the Dirigera hub are handled. Devices confirmed fr
 |---------------------------------|-----------------------------------------------------|-------------------------------|
 | `light`                         | `light`                                             | TRADFRI bulb GU10 CWS / WS    |
 | `outlet`                        | `switch` + `sensor` ×4                              | INSPELNING Smart plug (E2206) |
+| `electricalSensor`              | `sensor` x3                                         | GRILLPLATS plug (E2491-EU)    |
 | `lightController`               | `event` + `sensor` (battery)                        | Remote Control N2 (E2001)     |
 | `motionSensor`                  | `binary_sensor` + `sensor` (battery)                | VALLHORN (E2134)              |
 | `lightSensor`                   | `sensor` (illuminance)                              | VALLHORN sibling              |
