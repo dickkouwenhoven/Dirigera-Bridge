@@ -49,8 +49,7 @@ def map_electrical_sensor(
     name = context.device_name
 
     logger.debug(
-        "map_electrical_sensor: mapping electricalSensor '%s' "
-        "(logical_id=%s)",
+        "map_electrical_sensor: mapping electricalSensor '%s' (logical_id=%s)",
         name,
         lid,
     )
