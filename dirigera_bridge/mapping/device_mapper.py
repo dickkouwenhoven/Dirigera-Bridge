@@ -314,8 +314,13 @@ def build_device_info(context: DeviceContext) -> DeviceInfo | None:
     """
 
     try:
+        device_identifier = (
+            context.serial_number
+            if context.serial_number != "UNKNOWN_SERIAL_NUMBER"
+            else context.relation_id
+        )
         device_info = create_device_info(
-            identifiers=[("dirigera", context.serial_number)],
+            identifiers=[("dirigera", device_identifier)],
             name=context.device_name,
             manufacturer=context.manufacturer,
             model=context.model,
