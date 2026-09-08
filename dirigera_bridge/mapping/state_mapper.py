@@ -489,8 +489,7 @@ class StateMapper:
             return None
 
         logger.debug(
-            "_map_electrical_sensor_state: unhandled attribute '%s' "
-            "for %s",
+            "_map_electrical_sensor_state: unhandled attribute '%s' for %s",
             attribute,
             logical_id,
         )
