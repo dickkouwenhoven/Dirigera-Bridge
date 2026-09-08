@@ -278,6 +278,7 @@ def _register_mappers() -> None:
         (".gateway", "gateway"),
         (".light", "light"),
         (".outlet", "outlet"),
+        (".electrical_sensor", "electrical_sensor"),
         (".binary_sensor", "binary_sensor"),
         (".sensor", "sensor"),
         (".environment_sensor", "environment_sensor"),
