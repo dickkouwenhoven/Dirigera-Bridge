@@ -178,6 +178,9 @@ class StateMapper:
             if device_type == "outlet":
                 return self._map_outlet_state(logical_id, attribute, value)
 
+            if device_type == "electricalSensor":
+                return self._map_electrical_sensor_state(logical_id, attribute, value)
+
             if device_type in ("motionSensor",):
                 return self._map_motion_sensor_state(logical_id, attribute, value)
 
