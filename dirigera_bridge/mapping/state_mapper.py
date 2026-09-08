@@ -494,7 +494,7 @@ class StateMapper:
             logical_id,
         )
 
-        return None    
+        return None
 
     @staticmethod
     def _map_motion_sensor_state(
