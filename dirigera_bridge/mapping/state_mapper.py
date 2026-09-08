@@ -433,6 +433,71 @@ class StateMapper:
         return None
 
     @staticmethod
+    def _map_electrical_sensor_state(
+        logical_id: str,
+        attribute: str,
+        value: Any,
+    ) -> StatePayload | None:
+        """
+        Translate electricalSensor attribute changes to HA MQTT payloads.
+
+        Handled attributes:
+            currentActivePower  -> power sensor
+            currentVoltage      -> voltage sensor
+            currentAmps         -> current sensor
+            totalEnergyConsumed -> energy sensor
+        """
+
+        if attribute == "currentActivePower":
+            return StatePayload(
+                make_unique_id(logical_id, "power"),
+                _format_float(value),
+            )
+
+        if attribute == "currentVoltage":
+            return StatePayload(
+                make_unique_id(logical_id, "voltage"),
+                _format_float(value),
+            )
+
+        if attribute == "currentAmps":
+            return StatePayload(
+                make_unique_id(logical_id, "current"),
+                _format_float(value),
+            )
+
+        if attribute == "totalEnergyConsumed":
+            return StatePayload(
+                make_unique_id(logical_id, "energy"),
+                _format_float(value),
+            )
+
+        if attribute in (
+            "totalEnergyConsumedLastUpdated",
+            "energyConsumedAtLastReset",
+            "timeOfLastEnergyReset",
+            "identifyStarted",
+            "identifyPeriod",
+            "permittingJoin",
+            "otaStatus",
+            "otaState",
+            "otaProgress",
+            "otaPolicy",
+            "otaScheduleStart",
+            "otaScheduleEnd",
+        ):
+            return None
+
+        logger.debug(
+            "_map_electrical_sensor_state: unhandled attribute '%s' "
+            "for %s",
+            attribute,
+            logical_id,
+        )
+
+        return None    
+
+    @staticmethod
     def _map_motion_sensor_state(
         logical_id: str,
         attribute: str,
