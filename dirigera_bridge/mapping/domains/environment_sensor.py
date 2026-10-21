@@ -55,7 +55,8 @@ Design notes:
     - state_class 'measurement' is correct for all four — they are
       instantaneous readings, not cumulative counters.
     - The VINDSTYRKA has no battery (mains powered) so no battery
-      entity is created.
+      entity is created. But a TIMMERFLOTE has a battery. Therefore
+      battery enablement is added.
     - min/max PM2.5 range from real data: minMeasuredPM25=0,
       maxMeasuredPM25=999. These are not used in HA entity config
       but are available in raw_attributes for reference.
@@ -68,7 +69,7 @@ import logging
 from ha_mqtt_sdk import DeviceInfo, Entity, HADomain
 
 from ..device_registry import DeviceContext
-from . import make_unique_id
+from . import make_battery_entity, make_unique_id
 
 __all__ = [
     "DEVICE_TYPES",
@@ -82,6 +83,7 @@ _ATTR_TEMPERATURE = "currentTemperature"
 _ATTR_HUMIDITY = "currentRH"
 _ATTR_PM25 = "currentPM25"
 _ATTR_VOC_INDEX = "vocIndex"
+_ATTR_BATTERY_PERCENTAGE = "batteryPercentage"
 
 
 def map_environment_sensor(
@@ -135,6 +137,18 @@ def map_environment_sensor(
     # ── VOC index ─────────────────────────────────────────────────────────
     if attrs.get(_ATTR_VOC_INDEX) is not None:
         entities.append(_make_voc_sensor(lid, name, device_info))
+
+    # Battery sensor — only if the device reports a battery percentage
+    battery_pct = attrs.get(_ATTR_BATTERY_PERCENTAGE)
+    if isinstance(battery_pct, (int, float)):
+        entities.append(
+            make_battery_entity(
+                logical_id=lid,
+                device_name=name,
+                device_info=device_info,
+                battery_pct=int(battery_pct),
+            )
+        )
 
     logger.debug(
         "map_environment_sensor: mapped '%s' to %d HA entity(ies)",
