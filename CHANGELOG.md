@@ -7,6 +7,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-10-21
+
+### Added
+- Added the device TIMMERFLOTE to the environment sensor by adding the entity battery.
+- `dirigera_bridge/mapping/domains/environment_sensor.py` - Added batteryPercentage
+- `dirigera_bridge/mapping/state_mapper.py` - Added batteryPercentage in environment sensor state
+
 ## [1.0.1] - 2026-08-31
 
 ### Changed
