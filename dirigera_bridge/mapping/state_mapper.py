@@ -655,6 +655,12 @@ class StateMapper:
                 str(int(value)),
             )
 
+        if attribute == "batteryPercentage":
+            return StatePayload(
+                make_unique_id(logical_id, "battery"),
+                str(int(value)),
+            )
+
         if attribute in (
             "maxMeasuredPM25",
             "minMeasuredPM25",
