@@ -89,6 +89,7 @@ _ATTR_BATTERY_PERCENTAGE = "batteryPercentage"
 # device must not create a second battery entity.
 _SECONDARY_DEVICE_SUFFIX = "_2"
 
+
 def owns_battery(logical_id: str) -> bool:
     """Return True if this logical id is the device that owns the battery entity."""
     return not logical_id.endswith(_SECONDARY_DEVICE_SUFFIX)
