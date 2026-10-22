@@ -527,9 +527,7 @@ class TestMapStateEnvironmentSensor:
     @pytest.mark.unit
     def test_humidity_on_secondary_stays_on_secondary(self, mapper: StateMapper) -> None:
         """Only the battery is re-routed; humidity from '_2' keeps its '_2' unique_id."""
-        result = mapper.map_state(
-            self.TIMMERFLOTTE_SECONDARY, "environmentSensor", "currentRH", 51
-        )
+        result = mapper.map_state(self.TIMMERFLOTTE_SECONDARY, "environmentSensor", "currentRH", 51)
         assert result is not None
         assert result.unique_id.endswith("_2_humidity")
         assert result.payload == "51.00"
