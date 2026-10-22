@@ -655,7 +655,7 @@ class StateMapper:
                 make_unique_id(logical_id, "voc"),
                 str(int(value)),
             )
-        
+
         if attribute == "batteryPercentage":
             return StatePayload(
                 make_unique_id(battery_owner_id(logical_id), "battery"),
