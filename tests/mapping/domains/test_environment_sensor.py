@@ -302,7 +302,7 @@ class TestBatteryOwnership:
     )
     def test_battery_owner_id(self, logical_id: str, expected: str) -> None:
         assert battery_owner_id(logical_id) == expected
-        
+
 
 class TestEnvironmentSensorDeviceTypes:
     @pytest.mark.unit
