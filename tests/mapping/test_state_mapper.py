@@ -480,7 +480,7 @@ class TestMapStateEnvironmentSensor:
         result = mapper.map_state(self.LID, "environmentSensor", "maxMeasuredPM25", 999)
         assert result is None
 
-        TIMMERFLOTTE_RELATION = "fd5aef28-c0a1-45aa-8228-db7f62827f72"
+    TIMMERFLOTTE_RELATION = "fd5aef28-c0a1-45aa-8228-db7f62827f72"
     TIMMERFLOTTE_PRIMARY = f"{TIMMERFLOTTE_RELATION}_1"
     TIMMERFLOTTE_SECONDARY = f"{TIMMERFLOTTE_RELATION}_2"
     EXPECTED_BATTERY_UID = "dirigera_fd5aef28_c0a1_45aa_8228_db7f62827f72_1_battery"
