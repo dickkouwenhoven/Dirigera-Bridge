@@ -480,6 +480,60 @@ class TestMapStateEnvironmentSensor:
         result = mapper.map_state(self.LID, "environmentSensor", "maxMeasuredPM25", 999)
         assert result is None
 
+        TIMMERFLOTTE_RELATION = "fd5aef28-c0a1-45aa-8228-db7f62827f72"
+    TIMMERFLOTTE_PRIMARY = f"{TIMMERFLOTTE_RELATION}_1"
+    TIMMERFLOTTE_SECONDARY = f"{TIMMERFLOTTE_RELATION}_2"
+    EXPECTED_BATTERY_UID = "dirigera_fd5aef28_c0a1_45aa_8228_db7f62827f72_1_battery"
+
+    @pytest.mark.unit
+    def test_battery_percentage_primary(self, mapper: StateMapper) -> None:
+        """batteryPercentage on the primary ('_1') device maps to its battery sensor."""
+        result = mapper.map_state(
+            self.TIMMERFLOTTE_PRIMARY, "environmentSensor", "batteryPercentage", 87
+        )
+        assert result is not None
+        assert result.unique_id == self.EXPECTED_BATTERY_UID
+        assert result.payload == "87"
+
+    @pytest.mark.unit
+    def test_battery_percentage_secondary_routes_to_primary(self, mapper: StateMapper) -> None:
+        """batteryPercentage on the secondary ('_2') device is routed to the
+        battery entity owned by '_1' — '_2' has no battery entity of its own."""
+        result = mapper.map_state(
+            self.TIMMERFLOTTE_SECONDARY, "environmentSensor", "batteryPercentage", 87
+        )
+        assert result is not None
+        assert result.unique_id == self.EXPECTED_BATTERY_UID
+        assert result.payload == "87"
+
+    @pytest.mark.unit
+    def test_battery_percentage_float_value(self, mapper: StateMapper) -> None:
+        """A float batteryPercentage is published as an integer string."""
+        result = mapper.map_state(
+            self.TIMMERFLOTTE_PRIMARY, "environmentSensor", "batteryPercentage", 86.6
+        )
+        assert result is not None
+        assert result.payload == "86"
+
+    @pytest.mark.unit
+    def test_battery_percentage_without_suffix_unchanged(self, mapper: StateMapper) -> None:
+        """A logical_id without '_2' suffix keeps its own battery unique_id."""
+        result = mapper.map_state("env_abc", "environmentSensor", "batteryPercentage", 55)
+        assert result is not None
+        assert "env_abc" in result.unique_id
+        assert result.unique_id.endswith("battery")
+        assert result.payload == "55"
+
+    @pytest.mark.unit
+    def test_humidity_on_secondary_stays_on_secondary(self, mapper: StateMapper) -> None:
+        """Only the battery is re-routed; humidity from '_2' keeps its '_2' unique_id."""
+        result = mapper.map_state(
+            self.TIMMERFLOTTE_SECONDARY, "environmentSensor", "currentRH", 51
+        )
+        assert result is not None
+        assert result.unique_id.endswith("_2_humidity")
+        assert result.payload == "51.00"
+
 
 # ── lightController ───────────────────────────────────────────────────────────
 
