@@ -86,9 +86,7 @@ class TestMapElectricalSensorEntityCount:
             ("totalEnergyConsumed", "energy"),
         ],
     )
-    def test_single_attribute_creates_only_its_entity(
-        self, attr: str, device_class: str
-    ) -> None:
+    def test_single_attribute_creates_only_its_entity(self, attr: str, device_class: str) -> None:
         """Each attribute on its own creates exactly one matching entity."""
         ctx = MockContext({attr: 1})
         result = map_electrical_sensor(ctx, MockDeviceInfo())
