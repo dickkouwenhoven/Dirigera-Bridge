@@ -73,7 +73,9 @@ from . import make_battery_entity, make_unique_id
 
 __all__ = [
     "DEVICE_TYPES",
+    "battery_owner_id",
     "map_environment_sensor",
+    "owns_battery",
 ]
 
 logger = logging.getLogger(__name__)
@@ -84,6 +86,22 @@ _ATTR_HUMIDITY = "currentRH"
 _ATTR_PM25 = "currentPM25"
 _ATTR_VOC_INDEX = "vocIndex"
 _ATTR_BATTERY_PERCENTAGE = "batteryPercentage"
+
+# TIMMERFLOTTE reports as two Dirigera devices (<relationId>_1: temperature,
+# <relationId>_2: humidity) that share one physical battery. The secondary
+# device must not create a second battery entity.
+_SECONDARY_DEVICE_SUFFIX = "_2"
+
+def owns_battery(logical_id: str) -> bool:
+    """Return True if this logical id is the device that owns the battery entity."""
+    return not logical_id.endswith(_SECONDARY_DEVICE_SUFFIX)
+
+
+def battery_owner_id(logical_id: str) -> str:
+    """Map a secondary device id (<relationId>_2) to the battery owner (<relationId>_1)."""
+    if logical_id.endswith(_SECONDARY_DEVICE_SUFFIX):
+        return logical_id[: -len(_SECONDARY_DEVICE_SUFFIX)] + "_1"
+    return logical_id
 
 
 def map_environment_sensor(
@@ -138,9 +156,11 @@ def map_environment_sensor(
     if attrs.get(_ATTR_VOC_INDEX) is not None:
         entities.append(_make_voc_sensor(lid, name, device_info))
 
-    # Battery sensor — only if the device reports a battery percentage
+    # Battery sensor — one per physical device. TIMMERFLOTTE exposes two
+    # Dirigera devices with the same relationId, both reporting the shared
+    # battery; only the primary one (not "_2") creates the entity.
     battery_pct = attrs.get(_ATTR_BATTERY_PERCENTAGE)
-    if isinstance(battery_pct, (int, float)):
+    if isinstance(battery_pct, (int, float)) and owns_battery(lid):
         entities.append(
             make_battery_entity(
                 logical_id=lid,
@@ -149,7 +169,6 @@ def map_environment_sensor(
                 battery_pct=int(battery_pct),
             )
         )
-
     logger.debug(
         "map_environment_sensor: mapped '%s' to %d HA entity(ies)",
         name,
