@@ -21,6 +21,8 @@ Covers:
     - map_state() — speaker: playback, volume normalization, isOn
     - map_state() — gateway: all ten entity types
     - map_state() — switch: isOn
+    - map_state() — outlet: isOn, all four energy sensors
+    - map_state() — electricalSensor: all four energy sensors, suppressed attrs
     - _bool_to_onoff() helper
     - _format_float() helper
 """
@@ -337,6 +339,88 @@ class TestMapStateOutlet:
     def test_child_lock_suppressed(self, mapper: StateMapper) -> None:
         """childLock is suppressed for outlet."""
         result = mapper.map_state(self.LID, "outlet", "childLock", True)
+        assert result is None
+
+
+# ── electricalSensor (GRILLPLATS) ─────────────────────────────────────────────
+
+
+class TestMapStateElectricalSensor:
+    LID = "0acd598b-6bcb-46ba-8aa0-0fd035b678f6_2"
+
+    @pytest.mark.unit
+    def test_current_active_power(self, mapper: StateMapper) -> None:
+        """currentActivePower maps to power sensor with float payload."""
+        result = mapper.map_state(self.LID, "electricalSensor", "currentActivePower", 9.1)
+        assert result is not None
+        assert result.unique_id.endswith("_power")
+        assert result.payload == "9.10"
+
+    @pytest.mark.unit
+    def test_current_voltage(self, mapper: StateMapper) -> None:
+        """currentVoltage maps to voltage sensor."""
+        result = mapper.map_state(self.LID, "electricalSensor", "currentVoltage", 226.6)
+        assert result is not None
+        assert result.unique_id.endswith("_voltage")
+        assert result.payload == "226.60"
+
+    @pytest.mark.unit
+    def test_current_amps(self, mapper: StateMapper) -> None:
+        """currentAmps maps to current sensor."""
+        result = mapper.map_state(self.LID, "electricalSensor", "currentAmps", 0.153)
+        assert result is not None
+        assert result.unique_id.endswith("_current")
+        assert result.payload == "0.15"
+
+    @pytest.mark.unit
+    def test_total_energy_consumed(self, mapper: StateMapper) -> None:
+        """totalEnergyConsumed maps to energy sensor."""
+        result = mapper.map_state(self.LID, "electricalSensor", "totalEnergyConsumed", 2.97)
+        assert result is not None
+        assert result.unique_id.endswith("_energy")
+        assert result.payload == "2.97"
+
+    @pytest.mark.unit
+    def test_zero_value_not_suppressed(self, mapper: StateMapper) -> None:
+        """An idle plug reporting 0 W is published as '0.00', not dropped."""
+        result = mapper.map_state(self.LID, "electricalSensor", "currentActivePower", 0)
+        assert result is not None
+        assert result.payload == "0.00"
+
+    @pytest.mark.unit
+    def test_unique_id_uses_logical_id(self, mapper: StateMapper) -> None:
+        """Hyphens in the logical_id become underscores, as at registration."""
+        result = mapper.map_state(self.LID, "electricalSensor", "currentVoltage", 230)
+        assert result is not None
+        assert result.unique_id == "dirigera_0acd598b_6bcb_46ba_8aa0_0fd035b678f6_2_voltage"
+
+    @pytest.mark.unit
+    @pytest.mark.parametrize(
+        "attribute",
+        [
+            "totalEnergyConsumedLastUpdated",
+            "energyConsumedAtLastReset",
+            "timeOfLastEnergyReset",
+            "identifyStarted",
+            "identifyPeriod",
+            "permittingJoin",
+            "otaStatus",
+            "otaState",
+            "otaProgress",
+            "otaPolicy",
+            "otaScheduleStart",
+            "otaScheduleEnd",
+        ],
+    )
+    def test_internal_attributes_suppressed(self, mapper: StateMapper, attribute: str) -> None:
+        """Internal / bookkeeping attributes are not forwarded."""
+        result = mapper.map_state(self.LID, "electricalSensor", attribute, "x")
+        assert result is None
+
+    @pytest.mark.unit
+    def test_unhandled_attribute_returns_none(self, mapper: StateMapper) -> None:
+        """An attribute that is neither mapped nor on the suppress list is ignored."""
+        result = mapper.map_state(self.LID, "electricalSensor", "somethingNew", 1)
         assert result is None
 
 
