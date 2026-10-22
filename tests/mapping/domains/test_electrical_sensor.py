@@ -201,4 +201,12 @@ class TestMapElectricalSensorUniqueIds:
 class TestElectricalSensorDeviceTypes:
     @pytest.mark.unit
     def test_key_registered(self) -> None:
-        assert
+        assert "electricalSensor" in DEVICE_TYPES
+
+    @pytest.mark.unit
+    def test_only_one_key(self) -> None:
+        assert len(DEVICE_TYPES) == 1
+
+    @pytest.mark.unit
+    def test_registered_mapper_is_map_electrical_sensor(self) -> None:
+        assert DEVICE_TYPES["electricalSensor"] is map_electrical_sensor
