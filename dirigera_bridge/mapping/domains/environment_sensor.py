@@ -39,9 +39,6 @@ Not responsible for:
     - MQTT publishing (ha_client.py)
 
 Design notes:
-    - VINDSTYRKA has no relationId — it is a single logical device
-      (Challenge A, not Challenge B). All four entities share the same
-      logical_id and therefore the same device_info.
     - Attribute names from real VINDSTYRKA discovery data:
         currentTemperature  → float, degrees Celsius
         currentRH           → float, relative humidity %
@@ -55,7 +52,7 @@ Design notes:
     - state_class 'measurement' is correct for all four — they are
       instantaneous readings, not cumulative counters.
     - The VINDSTYRKA has no battery (mains powered) so no battery
-      entity is created. But a TIMMERFLOTE has a battery. Therefore
+      entity is created. But a TIMMERFLOTTE has a battery. Therefore
       battery enablement is added.
     - min/max PM2.5 range from real data: minMeasuredPM25=0,
       maxMeasuredPM25=999. These are not used in HA entity config
