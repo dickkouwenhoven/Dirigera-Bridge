@@ -53,6 +53,7 @@ All device types supported by the Dirigera hub are handled. Devices confirmed fr
 | `lightSensor`                   | `sensor` (illuminance)                              | VALLHORN sibling              |
 | `waterSensor`                   | `binary_sensor` + `sensor` (battery)                | BADRING (E2202)               |
 | `environmentSensor`             | `sensor` ×4                                         | VINDSTYRKA (E2112)            |
+|                                 | `sensor` ×3                                         | TIMMERFLOTTE                  |
 | `gateway`                       | `binary_sensor` ×2 + `sensor` ×7 + `device_tracker` | DIRIGERA Hub                  |
 | `blind` / `blinds`              | `cover`                                             | PRAKTLYSING / KADRILJ         |
 | `airPurifier`                   | `fan` + `sensor` ×2                                 | STARKVIND (E2007)             |
