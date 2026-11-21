@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dirigera_bridge"
-version = "1.1.0"
+version = "2.0.0"
 description = "A python service that bridges an IKEA Dirigera hub to Home Assistant via MQTT."
 readme = "README.md"
 requires-python = ">=3.12"
@@ -105,6 +105,7 @@ ignore = []
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 addopts = "-V"
