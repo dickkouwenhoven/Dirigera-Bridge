@@ -60,7 +60,7 @@ FROM python:3.12-slim AS runtime
 LABEL maintainer="Dick Kouwenhoven" \
       description="Dirigera ↔ Home Assistant MQTT Bridge" \
       org.opencontainers.image.title="dirigera-mqtt-bridge" \
-      org.opencontainers.image.version="1.0.0"
+      org.opencontainers.image.version="2.0.0"
 
 # Runtime environment
 ENV PYTHONDONTWRITEBYTECODE=1 \
