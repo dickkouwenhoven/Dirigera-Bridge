@@ -382,6 +382,30 @@ class TestLoadSettingsOptionalCustomValues:
         assert s.mqtt_qos == 0
 
     @pytest.mark.unit
+    def test_mqtt_retain_state_defaults_to_true(self, valid_env: None) -> None:
+        assert load_settings().mqtt_retain_state is True
+
+    @pytest.mark.unit
+    def test_mqtt_retain_state_can_be_disabled(
+        self,
+        valid_env: None,
+        monkeypatch: MonkeyPatch,
+    ) -> None:
+        monkeypatch.setenv("MQTT_RETAIN_STATE", "false")
+        assert load_settings().mqtt_retain_state is False
+
+    @pytest.mark.unit
+    def test_invalid_mqtt_retain_state_raises(
+        self,
+        valid_env: None,
+        monkeypatch: MonkeyPatch,
+    ) -> None:
+        monkeypatch.setenv("MQTT_RETAIN_STATE", "maybe")
+        with pytest.raises(DirigeraBridgeError) as exc_info:
+            load_settings()
+        assert exc_info.value.code == ErrorCode.CONFIG_INVALID_VALUE
+
+    @pytest.mark.unit
     def test_mqtt_qos_two_is_valid(
         self,
         valid_env: None,

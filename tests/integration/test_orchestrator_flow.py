@@ -30,12 +30,13 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import dataclasses
 from types import SimpleNamespace
 from typing import Any, cast
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from ha_mqtt_sdk import Entity
+from ha_mqtt_sdk import Entity, HADomain
 
 from dirigera_bridge.config import Settings
 from dirigera_bridge.core.discovery_cache import DiscoveryCache
@@ -1464,3 +1465,78 @@ class TestOnDeviceReachable:
 
         mock_rest_client.get_device.assert_awaited_once_with("fff75d00_1")
         assert orchestrator._last_reachable["fff75d00_1"] is True
+
+
+# ── State retention (QoS / retain) ──────────────────────────────────────────
+
+
+class TestStateRetention:
+    @pytest.fixture(autouse=True)
+    async def _startup(self, orchestrator: Orchestrator) -> None:
+        """Run startup before each test in this class."""
+        await orchestrator._startup()
+        if orchestrator._metrics_task:
+            orchestrator._metrics_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await orchestrator._metrics_task
+
+    @pytest.mark.integration
+    async def test_state_changed_publishes_retained_for_normal_entity(
+        self,
+        orchestrator: Orchestrator,
+        event_bus: AsyncEventBus,
+        mock_ha_client: MagicMock,
+        mock_entity: Entity,
+    ) -> None:
+        lid = "f47bd1c3-3e57-47c3-b762-1e27bd8d791c_1"
+        orchestrator._entities[make_unique_id(lid)] = mock_entity
+        orchestrator._state_cache.clear()
+
+        await event_bus.publish(
+            DirigeraEvent(
+                event_type=EventType.STATE_CHANGED,
+                logical_id=lid,
+                data={"attribute": "isOn", "value": False, "device_type": "light"},
+            )
+        )
+        await asyncio.sleep(0.05)
+
+        mock_ha_client.update_state_direct.assert_awaited()
+        assert mock_ha_client.update_state_direct.await_args.kwargs["retain"] is True
+
+    @pytest.mark.unit
+    @pytest.mark.parametrize("domain", [HADomain.EVENT, HADomain.BUTTON])
+    def test_event_like_domains_are_never_retained(
+        self,
+        orchestrator: Orchestrator,
+        domain: HADomain,
+    ) -> None:
+        entity = MagicMock()
+        entity.domain = domain
+
+        assert orchestrator._should_retain_state(entity) is False
+
+    @pytest.mark.unit
+    @pytest.mark.parametrize("domain", [HADomain.SENSOR, HADomain.LIGHT, HADomain.SWITCH])
+    def test_regular_domains_are_retained(
+        self,
+        orchestrator: Orchestrator,
+        domain: HADomain,
+    ) -> None:
+        entity = MagicMock()
+        entity.domain = domain
+
+        assert orchestrator._should_retain_state(entity) is True
+
+    @pytest.mark.unit
+    def test_retain_can_be_disabled_via_settings(
+        self,
+        orchestrator: Orchestrator,
+    ) -> None:
+        orchestrator._settings = dataclasses.replace(
+            orchestrator._settings, mqtt_retain_state=False
+        )
+        entity = MagicMock()
+        entity.domain = HADomain.SENSOR
+
+        assert orchestrator._should_retain_state(entity) is False

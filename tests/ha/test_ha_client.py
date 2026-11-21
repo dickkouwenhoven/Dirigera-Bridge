@@ -71,6 +71,7 @@ class FakeMQTTClient(BaseAsyncMQTTClient):
     def __init__(self, config: object = None) -> None:
         self.config = config
         self.published: list[tuple[str, PublishPayload, bool]] = []
+        self.published_qos: list[int | None] = []
         self.subscribed: list[str] = []
         self.last_will: tuple[str, str] | None = None
         self._callback: Callable[[str, str], Awaitable[None]] | None = None
@@ -83,10 +84,17 @@ class FakeMQTTClient(BaseAsyncMQTTClient):
     async def disconnect(self) -> None:
         self.connected = False
 
-    async def publish(self, topic: str, payload: PublishPayload, retain: bool = False) -> None:
+    async def publish(
+        self,
+        topic: str,
+        payload: PublishPayload,
+        retain: bool = False,
+        qos: int | None = None,
+    ) -> None:
         if self.fail_publish:
             raise RuntimeError("simulated publish failure")
         self.published.append((topic, payload, retain))
+        self.published_qos.append(qos)
 
     async def subscribe(self, topic: str) -> None:
         self.subscribed.append(topic)
@@ -899,3 +907,60 @@ class TestUpdateAvailabilityErrorHandling:
             await client.update_availability(entity, True)
 
         assert exc_info.value.code == ErrorCode.MQTT_PUBLISH_FAILED
+
+
+# ── QoS / retain ────────────────────────────────────────────────────────────
+
+
+class TestQosAndRetain:
+    @pytest.mark.unit
+    async def test_state_uses_configured_qos_and_is_not_retained_by_default(
+        self,
+        connected: tuple[HAClient, Any],
+        settings: Any,
+    ) -> None:
+        client, fake_mqtt = connected
+
+        await client.update_state_direct("dirigera/switch/foo/state", "ON")
+
+        assert fake_mqtt.published_qos == [settings.mqtt_qos]
+        assert fake_mqtt.published[-1][2] is False
+
+    @pytest.mark.unit
+    async def test_state_retain_flag_is_passed_through(
+        self,
+        connected: tuple[HAClient, Any],
+    ) -> None:
+        client, fake_mqtt = connected
+
+        await client.update_state_direct("dirigera/switch/foo/state", "ON", retain=True)
+
+        assert fake_mqtt.published == [("dirigera/switch/foo/state", "ON", True)]
+
+    @pytest.mark.unit
+    async def test_update_state_passes_retain_through(
+        self,
+        connected: tuple[HAClient, Any],
+    ) -> None:
+        client, fake_mqtt = connected
+
+        await client.update_state("switch_1", "dirigera/switch/foo/state", "ON", retain=True)
+
+        assert fake_mqtt.published[-1][2] is True
+
+    @pytest.mark.unit
+    async def test_availability_uses_configured_qos(
+        self,
+        connected: tuple[HAClient, Any],
+        settings: Any,
+    ) -> None:
+        client, fake_mqtt = connected
+        entity = make_entity(unique_id="switch_qos_test")
+        await client.register_entity(entity)
+        fake_mqtt.published.clear()
+        fake_mqtt.published_qos.clear()
+
+        await client.update_availability(entity, online=True)
+
+        assert fake_mqtt.published_qos == [settings.mqtt_qos]
+        assert fake_mqtt.published[0][2] is True  # availability stays retained
