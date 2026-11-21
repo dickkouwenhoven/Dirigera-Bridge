@@ -404,7 +404,8 @@ All settings are loaded from `.env` at startup. Invalid or missing required valu
 | `MQTT_CLIENT_ID`            |          | `dirigera-bridge` | MQTT client identifier                                          |
 | `MQTT_KEEPALIVE`            |          | `60`              | MQTT keepalive interval (seconds)                               |
 | `MQTT_BASE_TOPIC`           |          | `dirigera`        | Base topic prefix for state/command topics                      |
-| `MQTT_QOS`                  |          | `1`               | MQTT QoS level (0, 1, or 2)                                     |
+| `MQTT_QOS`                  |          | `1`               | QoS level (0, 1, or 2) for state and availability publishes     |
+| `MQTT_RETAIN_STATE`         |          | `true`            | Publish states retained so HA restores them after a restart (events are never retained) |
 | `MQTT_TLS`                  |          | `false`           | Use TLS for the MQTT connection                                 |
 | `MQTT_RECONNECT`            |          | `true`            | Let the HASDK auto-reconnect the MQTT transport                 |
 | `MQTT_RECONNECT_DELAY_MIN`  |          | `1.0`             | Minimum HASDK MQTT reconnect delay (seconds)                    |

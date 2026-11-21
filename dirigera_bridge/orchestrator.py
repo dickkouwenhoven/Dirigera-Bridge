@@ -75,7 +75,7 @@ import logging
 from _collections_abc import Awaitable, Callable
 from typing import Any
 
-from ha_mqtt_sdk import Entity
+from ha_mqtt_sdk import Entity, HADomain
 
 from .config import Settings
 from .core.discovery_cache import DiscoveryCache
@@ -101,6 +101,12 @@ logger = logging.getLogger(__name__)
 
 # Type alias for per-device command callbacks
 _CommandCallback = Callable[[str, str], Awaitable[None]]
+
+# Domains whose "state" is a momentary event (button press, remote action).
+# These must never be published retained: a retained event would be
+# replayed to Home Assistant on every restart / re-subscribe and show up
+# as a phantom button press.
+_NON_RETAINED_STATE_DOMAINS = frozenset({HADomain.EVENT, HADomain.BUTTON})
 
 
 # noinspection GrazieStyle
@@ -435,6 +441,18 @@ class Orchestrator:
         )
 
     # ── Event subscriptions ───────────────────────────────────────────────
+
+    def _should_retain_state(self, entity: Entity) -> bool:
+        """
+        Decide whether a state publish for this entity is retained.
+
+        Retained states let Home Assistant restore the last known value
+        after a restart instead of showing 'unknown'. Controlled by
+        Settings.mqtt_retain_state; event-like domains are never retained.
+        """
+        if not self._settings.mqtt_retain_state:
+            return False
+        return entity.domain not in _NON_RETAINED_STATE_DOMAINS
 
     def _subscribe_events(self) -> None:
         """Subscribe all orchestrator handlers to the internal event bus."""
@@ -1018,6 +1036,7 @@ class Orchestrator:
             await self._ha_client.update_state_direct(
                 state_topic=state_topic,
                 payload=state_payload.payload,
+                retain=self._should_retain_state(entity),
             )
             self._metrics.increment(MetricName.MAPPING_STATE_UPDATES)
         except DirigeraBridgeError as exc:

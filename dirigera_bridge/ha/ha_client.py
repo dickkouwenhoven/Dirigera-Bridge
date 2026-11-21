@@ -366,6 +366,8 @@ class HAClient:
         unique_id: str,
         state_topic: str,
         payload: str,
+        *,
+        retain: bool = False,
     ) -> None:
         """
         Publish a state update to an entity's MQTT state topic.
@@ -374,6 +376,7 @@ class HAClient:
             unique_id (str): The entity's unique_id (used to look up
                              the Entity in the HASDK manager).
             payload (str):   The state payload string to publish.
+            retain (bool):   Publish as retained message (default False).
 
         Raises:
             DirigeraBridgeError: MQTT_PUBLISH_FAILED if publish fails.
@@ -398,7 +401,7 @@ class HAClient:
 
         self._require_connected("update_state")
 
-        await self.update_state_direct(state_topic, payload)
+        await self.update_state_direct(state_topic, payload, retain=retain)
 
         logger.debug(
             "update_state: published '%s' → %r",
@@ -445,6 +448,8 @@ class HAClient:
         self,
         state_topic: str,
         payload: str,
+        *,
+        retain: bool = False,
     ) -> None:
         """
         Publish a state payload directly to an MQTT topic.
@@ -456,6 +461,13 @@ class HAClient:
         Args:
             state_topic (str): Full MQTT state topic string.
             payload (str):     State payload string to publish.
+            retain (bool):     Publish as retained message so HA can
+                               restore the last state after a restart
+                               (default False). Never use for event
+                               payloads: a retained event would be
+                               replayed to new subscribers.
+
+        The QoS level comes from Settings.mqtt_qos.
 
         Raises:
             DirigeraBridgeError: MQTT_PUBLISH_FAILED if publish fails.
@@ -468,7 +480,8 @@ class HAClient:
             await self._mqtt_client.publish(
                 topic=state_topic,
                 payload=payload,
-                retain=False,
+                retain=retain,
+                qos=self._settings.mqtt_qos,
             )
 
             self._metrics.increment(MetricName.MQTT_MESSAGES_PUBLISHED)
@@ -516,7 +529,7 @@ class HAClient:
 
         try:
             assert self._sdk is not None
-            await self._sdk.update_availability(entity, online)
+            await self._sdk.update_availability(entity, online, qos=self._settings.mqtt_qos)
 
             metric = (
                 MetricName.ENTITY_AVAILABILITY_ONLINE

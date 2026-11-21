@@ -147,9 +147,11 @@ class Settings:
             Default: 'dirigera'.
 
         mqtt_qos (int):
-            MQTT Quality of Service level for all publishes and
-            subscriptions. 0 = at most once, 1 = at least once,
-            2 = exactly once. Default: 1.
+            MQTT Quality of Service level for the bridge's state and
+            availability publishes. 0 = at most once, 1 = at least
+            once, 2 = exactly once. Default: 1.
+            (Discovery publishes and subscriptions are handled by the
+            HA-MQTT-SDK and are not affected by this setting.)
 
         mqtt_tls (bool):
             Whether the HASDK's MQTT transport connects over TLS.
@@ -235,6 +237,12 @@ class Settings:
     reconnect_delay_initial: float
     reconnect_delay_max: float
 
+    # ── State retention ───────────────────────────────────────────────────
+    # Publish entity states as retained messages so Home Assistant can
+    # restore the last known state after a restart (instead of 'unknown').
+    # Event entities (buttons, remotes) are never retained.
+    mqtt_retain_state: bool = True
+
     def safe_repr(self) -> str:
         """
         Return a string representation with secrets redacted.
@@ -258,6 +266,7 @@ class Settings:
             f"mqtt_keepalive={self.mqtt_keepalive}, "
             f"mqtt_base_topic={self.mqtt_base_topic!r}, "
             f"mqtt_qos={self.mqtt_qos}, "
+            f"mqtt_retain_state={self.mqtt_retain_state}, "
             f"mqtt_tls={self.mqtt_tls}, "
             f"mqtt_reconnect={self.mqtt_reconnect}, "
             f"mqtt_reconnect_delay_min={self.mqtt_reconnect_delay_min}, "
@@ -336,6 +345,7 @@ def load_settings(env_file: str | None = None) -> Settings:
     mqtt_keepalive = _optional_int("MQTT_KEEPALIVE", default=60, min_val=1)
     mqtt_base_topic = _optional_str("MQTT_BASE_TOPIC", default="dirigera")
     mqtt_qos = _optional_int("MQTT_QOS", default=1, min_val=0, max_val=2)
+    mqtt_retain_state = _optional_bool("MQTT_RETAIN_STATE", default=True)
     mqtt_tls = _optional_bool("MQTT_TLS", default=False)
     mqtt_reconnect = _optional_bool("MQTT_RECONNECT", default=True)
     mqtt_reconnect_delay_min = _optional_float("MQTT_RECONNECT_DELAY_MIN", default=1.0, min_val=0.1)
@@ -406,6 +416,7 @@ def load_settings(env_file: str | None = None) -> Settings:
         ws_ping_timeout=ws_ping_timeout,
         reconnect_delay_initial=reconnect_delay_initial,
         reconnect_delay_max=reconnect_delay_max,
+        mqtt_retain_state=mqtt_retain_state,
     )
 
     assert _settings is not None
