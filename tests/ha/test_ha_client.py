@@ -897,7 +897,9 @@ class TestUpdateAvailabilityErrorHandling:
         entity = make_entity(unique_id="switch_avail_reraise_test")
         await client.register_entity(entity)
 
-        async def failing_update_availability(_entity_arg: Entity, _online: bool) -> None:
+        async def failing_update_availability(
+            _entity_arg: Entity, _online: bool, *, qos: int | None = None
+        ) -> None:
             raise DirigeraBridgeError(ErrorCode.MQTT_PUBLISH_FAILED, "boom")
 
         assert client._sdk is not None
@@ -907,6 +909,8 @@ class TestUpdateAvailabilityErrorHandling:
             await client.update_availability(entity, True)
 
         assert exc_info.value.code == ErrorCode.MQTT_PUBLISH_FAILED
+        # The original error must come through, not a re-wrapped TypeError
+        assert "boom" in str(exc_info.value)
 
 
 # ── QoS / retain ────────────────────────────────────────────────────────────
