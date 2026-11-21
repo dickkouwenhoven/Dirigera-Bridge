@@ -5,7 +5,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
-## [Unreleased]
+## [2.0.0] - 2026-11-21
 
 ### Changed
 - `MQTT_QOS` is now actually applied to state and availability publishes (it was read and validated before, but never used, so everything went out with QoS 0).
